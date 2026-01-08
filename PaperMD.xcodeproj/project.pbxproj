@@ -17,6 +17,7 @@
 		A100008 /* ExportHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100017 /* ExportHelper.swift */; };
 		A100009 /* MarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100018 /* MarkdownTextView.swift */; };
 		A100010 /* StatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100019 /* StatusBar.swift */; };
+		A100024 /* MenuActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020 /* MenuActions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +31,7 @@
 		A100017 /* ExportHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportHelper.swift; sourceTree = "<group>"; };
 		A100018 /* MarkdownTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTextView.swift; sourceTree = "<group>"; };
 		A100019 /* StatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBar.swift; sourceTree = "<group>"; };
+		A100020 /* MenuActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuActions.swift; sourceTree = "<group>"; };
 		A100021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A100022 /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
 		A100023 /* PaperMD.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PaperMD.entitlements; sourceTree = "<group>"; };
@@ -82,6 +84,7 @@
 				A100017 /* ExportHelper.swift */,
 				A100018 /* MarkdownTextView.swift */,
 				A100019 /* StatusBar.swift */,
+				A100020 /* MenuActions.swift */,
 				A100014 /* WindowController.swift */,
 			);
 			path = App;
@@ -174,6 +177,7 @@
 				A100008 /* ExportHelper.swift in Sources */,
 				A100009 /* MarkdownTextView.swift in Sources */,
 				A100010 /* StatusBar.swift in Sources */,
+				A100024 /* MenuActions.swift in Sources */,
 				A100006 /* WindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -7,7 +7,7 @@
 
 import Cocoa
 
-class WindowController: NSWindowController {
+class WindowController: NSWindowController, NSMenuItemValidation {
 
     private var toolbar: NSToolbar?
 
@@ -44,10 +44,6 @@ class WindowController: NSWindowController {
     }
 
     // MARK: - Toolbar Actions
-
-    @objc private func toggleSidebar(_ sender: Any?) {
-        editorView?.toggleSidebar()
-    }
 
     @objc private func togglePreview(_ sender: Any?) {
         // Future: Add HTML preview toggle
@@ -137,35 +133,81 @@ extension WindowController: NSToolbarDelegate {
             .code
         ]
     }
+}
 
-    // MARK: - Formatting Actions
+// MARK: - Formatting Actions
 
-    @objc private func applyBold(_ sender: Any?) {
+extension WindowController {
+
+    // Forward NSDocument actions to the document
+    @objc func saveDocument(_ sender: Any?) {
+        // Use NSApplication to send the action to the responder chain
+        // This ensures proper document handling
+        NSApp.sendAction(#selector(NSDocument.save(_:)), to: nil, from: sender)
+    }
+
+    @objc func saveDocumentAs(_ sender: Any?) {
+        // Use NSApplication to send the action to the responder chain
+        NSApp.sendAction(#selector(NSDocument.saveAs(_:)), to: nil, from: sender)
+    }
+
+    @objc func applyBold(_ sender: Any?) {
         insertMarkdownAroundSelection(prefix: "**", suffix: "**")
     }
 
-    @objc private func applyItalic(_ sender: Any?) {
+    @objc func applyItalic(_ sender: Any?) {
         insertMarkdownAroundSelection(prefix: "*", suffix: "*")
     }
 
-    @objc private func applyCode(_ sender: Any?) {
+    @objc func applyCode(_ sender: Any?) {
         insertMarkdownAroundSelection(prefix: "`", suffix: "`")
     }
 
-    @objc private func applyHeading1(_ sender: Any?) {
+    @objc func applyHeading1(_ sender: Any?) {
         insertMarkdownAtLineStart(prefix: "# ")
     }
 
-    @objc private func applyHeading2(_ sender: Any?) {
+    @objc func applyHeading2(_ sender: Any?) {
         insertMarkdownAtLineStart(prefix: "## ")
     }
 
-    @objc private func applyHeading3(_ sender: Any?) {
+    @objc func applyHeading3(_ sender: Any?) {
         insertMarkdownAtLineStart(prefix: "### ")
     }
 
-    @objc private func toggleFocusMode(_ sender: Any?) {
+    @objc func toggleFocusMode(_ sender: Any?) {
         editorView?.toggleFocusMode()
+    }
+
+    @objc func toggleSidebar(_ sender: Any?) {
+        editorView?.toggleSidebar()
+    }
+
+    // MARK: - Menu Validation
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        // Enable save menu items when we have a document
+        guard let action = menuItem.action else { return false }
+
+        if action == #selector(saveDocument(_:)) ||
+           action == #selector(saveDocumentAs(_:)) {
+            // Always enable save operations - NSDocumentController will handle
+            return true
+        }
+        if action == #selector(applyBold(_:)) ||
+           action == #selector(applyItalic(_:)) ||
+           action == #selector(applyCode(_:)) ||
+           action == #selector(applyHeading1(_:)) ||
+           action == #selector(applyHeading2(_:)) ||
+           action == #selector(applyHeading3(_:)) {
+            return (editorView?.textView.selectedRange.length ?? 0) > 0
+        }
+        if action == #selector(toggleFocusMode(_:)) ||
+           action == #selector(toggleSidebar(_:)) {
+            return true
+        }
+
+        return true
     }
 
     private func updateFocusModeUI(_ isActive: Bool) {

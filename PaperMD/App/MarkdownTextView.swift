@@ -9,11 +9,87 @@ import Cocoa
 
 class MarkdownTextView: NSTextView {
 
+    // MARK: - First Responder
+
+    override var acceptsFirstResponder: Bool {
+        return true
+    }
+
+    // Ensure the textView has a valid undoManager
+    override var undoManager: UndoManager? {
+        if let manager = super.undoManager {
+            return manager
+        }
+        // If the textView doesn't have an undoManager yet, return the window's undoManager
+        return window?.undoManager
+    }
+
+    // MARK: - Text Editing with Undo Support
+
+    override func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?) -> Bool {
+        // Enable undo registration before text changes
+        // This ensures typing is recorded for undo
+        let result = super.shouldChangeText(in: affectedCharRange, replacementString: replacementString)
+        NSLog("PaperMD: shouldChangeText called, result=\(result), undoManager=\(undoManager?.canUndo ?? false)")
+        return result
+    }
+
+    // MARK: - Undo/Redo Support
+
+    @objc func undo(_ sender: Any?) {
+        undoManager?.undo()
+    }
+
+    @objc func redo(_ sender: Any?) {
+        undoManager?.redo()
+    }
+
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        // Enable/disable undo menu items based on undoManager state
+        guard let action = item.action else { return super.validateUserInterfaceItem(item) }
+
+        let actionString = NSStringFromSelector(action)
+        if actionString == "undo:" {
+            return undoManager?.canUndo ?? false
+        }
+        if actionString == "redo:" {
+            return undoManager?.canRedo ?? false
+        }
+
+        return super.validateUserInterfaceItem(item)
+    }
+
+    // MARK: - Paste as Plain Text
+
+    override func paste(_ sender: Any?) {
+        // Always paste as plain text to avoid bringing in unwanted formatting
+        let pasteboard = NSPasteboard.general
+        guard let plainText = pasteboard.string(forType: .string) else {
+            super.paste(sender)
+            return
+        }
+
+        // Insert plain text at current selection
+        let selectedRange = self.selectedRange
+        replaceCharacters(in: selectedRange, with: plainText)
+
+        // Set selection to end of pasted text
+        let newRange = NSRange(location: selectedRange.location + plainText.count, length: 0)
+        setSelectedRange(newRange)
+    }
+
     // MARK: - Key Handling
 
     override func keyDown(with event: NSEvent) {
         let keyCode = event.keyCode
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+        // Don't intercept command key combinations - let them go to menu actions
+        // This allows ⌘S (save), ⌘C (copy), ⌘V (paste), etc. to work
+        if modifiers.contains(.command) {
+            super.keyDown(with: event)
+            return
+        }
 
         // Handle Enter key for smart list continuation
         if keyCode == 36 && modifiers.isEmpty { // 36 is Return key
@@ -44,6 +120,35 @@ class MarkdownTextView: NSTextView {
         }
 
         super.keyDown(with: event)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // Handle ⌘Z and ⌘Shift+Z directly for undo/redo
+        let keyCode = event.keyCode
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+        NSLog("PaperMD: performKeyEquivalent keyCode=\(keyCode), modifiers=\(modifiers), characters=\(event.characters ?? "none")")
+
+        // ⌘Z = undo (keyCode 6)
+        // ⌘Shift+Z = redo (keyCode 6 with shift)
+        if modifiers.contains(.command) {
+            if keyCode == 6 {  // Z key
+                NSLog("PaperMD: Detected ⌘Z, canUndo=\(undoManager?.canUndo ?? false), redoing=\(undoManager?.canRedo ?? false)")
+                if modifiers.contains(.shift) {
+                    // Redo
+                    NSLog("PaperMD: Calling redo()")
+                    undoManager?.redo()
+                } else {
+                    // Undo
+                    NSLog("PaperMD: Calling undo()")
+                    undoManager?.undo()
+                }
+                return true
+            }
+        }
+
+        // Let NSTextView handle other standard key equivalents
+        return super.performKeyEquivalent(with: event)
     }
 
     // MARK: - Smart List Continuation

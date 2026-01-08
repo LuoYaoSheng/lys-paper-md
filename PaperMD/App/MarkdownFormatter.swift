@@ -45,6 +45,10 @@ class MarkdownFormatter {
     static func applyFormatting(to textStorage: NSTextStorage, editedRange: NSRange) {
         let text = textStorage.string
 
+        // Safety check: ensure text is not empty and range is valid
+        guard !text.isEmpty else { return }
+        guard editedRange.location <= text.count else { return }
+
         // Only reformat lines that were affected by the edit
         let affectedRange = lineRange(for: editedRange, in: text)
         guard affectedRange.location < text.count else { return }
@@ -104,7 +108,7 @@ class MarkdownFormatter {
 
     private static func isListItem(_ line: String) -> Bool {
         // Check original line for list markers
-        if line.isEmpty { return false }
+        guard !line.isEmpty else { return false }
 
         // Check for - item (with optional leading whitespace)
         for char in line {
@@ -113,7 +117,7 @@ class MarkdownFormatter {
             }
             if char == "-" || char == "*" || char == "+" {
                 // Next char should be space
-                let idx = line.firstIndex(of: char)!
+                guard let idx = line.firstIndex(of: char) else { break }
                 let nextIdx = line.index(after: idx)
                 if nextIdx < line.endIndex && line[nextIdx] == " " {
                     return true
@@ -421,8 +425,12 @@ class MarkdownFormatter {
     }
 
     private static func lineRange(for range: NSRange, in text: String) -> NSRange {
-        let start = text.index(text.startIndex, offsetBy: range.location)
-        let end = text.index(start, offsetBy: range.length, limitedBy: text.endIndex) ?? text.endIndex
+        // Safety checks for empty text and invalid ranges
+        guard !text.isEmpty else { return NSRange(location: 0, length: 0) }
+        guard range.location <= text.count else { return NSRange(location: 0, length: 0) }
+
+        let start = text.index(text.startIndex, offsetBy: min(range.location, text.count))
+        let end = text.index(start, offsetBy: min(range.length, text.distance(from: start, to: text.endIndex)), limitedBy: text.endIndex) ?? text.endIndex
 
         let lineStart = text.lineRange(for: start..<start).lowerBound
         let lineEnd = text.lineRange(for: end..<end).upperBound

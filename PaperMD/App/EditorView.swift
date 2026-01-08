@@ -23,9 +23,6 @@ class EditorView: NSView {
         }
     }
 
-    // Container view for split view and status bar
-    private var containerView: NSView!
-
     // The split view
     private var splitView: NSSplitView!
 
@@ -74,20 +71,15 @@ class EditorView: NSView {
     }
 
     private func setupView() {
-        // Create container view
-        containerView = NSView(frame: bounds)
-        containerView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(containerView)
-
-        // Create split view
-        splitView = NSSplitView()
+        // Create split view with frame
+        splitView = NSSplitView(frame: bounds)
         splitView.dividerStyle = .thin
         splitView.isVertical = true
-        splitView.translatesAutoresizingMaskIntoConstraints = false
+        splitView.autoresizingMask = [.width, .height]
 
-        // Create outline sidebar
-        outlineView = OutlineView()
-        outlineView.translatesAutoresizingMaskIntoConstraints = false
+        // Create outline sidebar with frame
+        let outlineFrame = NSRect(x: 0, y: 0, width: 200, height: bounds.height)
+        outlineView = OutlineView(frame: outlineFrame)
 
         // Set up heading click handler
         outlineView.onHeadingSelected = { [weak self] (lineNumber: Int) in
@@ -96,12 +88,13 @@ class EditorView: NSView {
 
         // Note: document will be set by makeWindowControllers in Document.swift
 
-        // Create scroll view for text
-        scrollView = NSScrollView()
+        // Create scroll view for text with frame
+        let scrollViewFrame = NSRect(x: 200, y: 0, width: bounds.width - 200, height: bounds.height)
+        scrollView = NSScrollView(frame: scrollViewFrame)
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.borderType = .noBorder
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.autoresizingMask = [.width, .height]
 
         // Configure text view
         textView.isVerticallyResizable = true
@@ -112,6 +105,11 @@ class EditorView: NSView {
         textView.font = NSFont.systemFont(ofSize: 16)
         textView.isEditable = true
         textView.isSelectable = true
+
+        // IMPORTANT: Enable undo/redo by using the window's undoManager
+        // This ensures typing actions are recorded for undo
+        textView.undoManager?.disableUndoRegistration()
+        textView.undoManager?.enableUndoRegistration()
 
         // Disable automatic substitutions for Markdown editing
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -131,34 +129,17 @@ class EditorView: NSView {
         // Set sidebar width
         splitView.setPosition(200, ofDividerAt: 0)
 
-        // Create status bar
-        statusBar = StatusBar()
-        statusBar.translatesAutoresizingMaskIntoConstraints = false
+        // Create status bar with frame
+        let statusBarFrame = NSRect(x: 0, y: bounds.height - 28, width: bounds.width, height: 28)
+        statusBar = StatusBar(frame: statusBarFrame)
+        statusBar.autoresizingMask = [.width]
 
-        // Add split view and status bar to container
-        containerView.addSubview(splitView)
-        containerView.addSubview(statusBar)
+        // Adjust split view frame to make room for status bar
+        splitView.frame = NSRect(x: 0, y: 0, width: bounds.width, height: bounds.height - 28)
 
-        // Layout constraints
-        NSLayoutConstraint.activate([
-            // Container fills the view
-            containerView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            containerView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            containerView.topAnchor.constraint(equalTo: topAnchor),
-            containerView.bottomAnchor.constraint(equalTo: bottomAnchor),
-
-            // Split view fills container except status bar
-            splitView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            splitView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            splitView.topAnchor.constraint(equalTo: containerView.topAnchor),
-            splitView.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
-
-            // Status bar at bottom
-            statusBar.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            statusBar.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            statusBar.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-            statusBar.heightAnchor.constraint(equalToConstant: 28)
-        ])
+        // Add to view
+        addSubview(splitView)
+        addSubview(statusBar)
 
         // Listen for text changes to mark document as edited and apply formatting
         NotificationCenter.default.addObserver(
@@ -277,5 +258,11 @@ class EditorView: NSView {
             splitView.setPosition(0, ofDividerAt: 0)
             outlineView.isHidden = true
         }
+    }
+
+    // MARK: - Responder Chain
+
+    override var acceptsFirstResponder: Bool {
+        return true
     }
 }
