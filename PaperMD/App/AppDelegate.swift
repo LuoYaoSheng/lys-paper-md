@@ -87,6 +87,49 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(withTitle: "Copy", action: #selector(NSTextView.copy(_:)), keyEquivalent: "c")
         editMenu.addItem(withTitle: "Paste", action: #selector(NSTextView.paste(_:)), keyEquivalent: "v")
         editMenu.addItem(withTitle: "Select All", action: #selector(NSTextView.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(NSMenuItem.separator())
+
+        // Find and Replace
+        editMenu.addItem(withTitle: "Find…", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
+        editMenu.addItem(withTitle: "Find Next", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "g")
+        editMenu.addItem(withTitle: "Find Previous", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "G")
+        editMenu.addItem(withTitle: "Replace", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "")
+        let replaceItem = editMenu.item(withTitle: "Replace")
+        replaceItem?.keyEquivalent = "f"
+        replaceItem?.keyEquivalentModifierMask = [.command, .option]
+        editMenu.addItem(NSMenuItem.separator())
+
+        // Spelling
+        editMenu.addItem(withTitle: "Show Spelling and Grammar", action: #selector(NSTextView.showGuessPanel(_:)), keyEquivalent: ":")
+        editMenu.addItem(withTitle: "Check Document Now", action: #selector(NSTextView.checkSpelling(_:)), keyEquivalent: ";")
+        editMenu.addItem(NSMenuItem.separator())
+
+        // Transformations submenu
+        let transformationsItem = NSMenuItem()
+        transformationsItem.title = "Transformations"
+        let transformationsMenu = NSMenu()
+        transformationsItem.submenu = transformationsMenu
+
+        transformationsMenu.addItem(withTitle: "Make Upper Case", action: #selector(NSTextView.uppercaseWord(_:)), keyEquivalent: "")
+        let upperItem = transformationsMenu.item(withTitle: "Make Upper Case")
+        upperItem?.keyEquivalent = "u"
+        upperItem?.keyEquivalentModifierMask = [.command, .control]
+
+        transformationsMenu.addItem(withTitle: "Make Lower Case", action: #selector(NSTextView.lowercaseWord(_:)), keyEquivalent: "")
+        let lowerItem = transformationsMenu.item(withTitle: "Make Lower Case")
+        lowerItem?.keyEquivalent = "l"
+        lowerItem?.keyEquivalentModifierMask = [.command, .control]
+
+        transformationsMenu.addItem(withTitle: "Capitalize", action: #selector(NSTextView.capitalizeWord(_:)), keyEquivalent: "")
+        let capItem = transformationsMenu.item(withTitle: "Capitalize")
+        capItem?.keyEquivalent = "c"
+        capItem?.keyEquivalentModifierMask = [.command, .option]
+
+        editMenu.addItem(transformationsItem)
+        editMenu.addItem(NSMenuItem.separator())
+
+        // Navigation
+        editMenu.addItem(withTitle: "Jump to Selection", action: #selector(NSTextView.centerSelectionInVisibleArea(_:)), keyEquivalent: "j")
 
         mainMenu.addItem(editMenuItem)
 
@@ -96,9 +139,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let viewMenu = NSMenu()
         viewMenuItem.submenu = viewMenu
 
-        let toggleSidebarItem = viewMenu.addItem(withTitle: "Toggle Sidebar", action: #selector(WindowController.toggleSidebar(_:)), keyEquivalent: "o")
-        toggleSidebarItem.keyEquivalentModifierMask = [.control, .command]  // Ctrl+⌘+O to avoid conflict
+        viewMenu.addItem(withTitle: "Toggle Sidebar", action: #selector(WindowController.toggleSidebar(_:)), keyEquivalent: "o")
+        let sidebarItem = viewMenu.item(withTitle: "Toggle Sidebar")
+        sidebarItem?.keyEquivalentModifierMask = [.control, .command]  // Ctrl+⌘+O
         viewMenu.addItem(withTitle: "Toggle Focus Mode", action: #selector(WindowController.toggleFocusMode(_:)), keyEquivalent: "f")
+        viewMenu.addItem(NSMenuItem.separator())
+        // Center selection in visible area - useful for navigation
+        viewMenu.addItem(withTitle: "Center Selection", action: #selector(NSTextView.centerSelectionInVisibleArea(_:)), keyEquivalent: "j")
 
         mainMenu.addItem(viewMenuItem)
 
@@ -108,13 +155,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let formatMenu = NSMenu()
         formatMenuItem.submenu = formatMenu
 
+        // Inline formatting
         let boldItem = formatMenu.addItem(withTitle: "Bold", action: #selector(WindowController.applyBold(_:)), keyEquivalent: "b")
         boldItem.target = nil
         let italicItem = formatMenu.addItem(withTitle: "Italic", action: #selector(WindowController.applyItalic(_:)), keyEquivalent: "i")
         italicItem.target = nil
         let codeItem = formatMenu.addItem(withTitle: "Code", action: #selector(WindowController.applyCode(_:)), keyEquivalent: "k")
         codeItem.target = nil
+
+        // Strikethrough
+        let strikeItem = formatMenu.addItem(withTitle: "Strikethrough", action: #selector(WindowController.applyStrikethrough(_:)), keyEquivalent: "")
+        strikeItem.keyEquivalent = "s"
+        strikeItem.keyEquivalentModifierMask = [.command, .option]
+        strikeItem.target = nil
+
         formatMenu.addItem(NSMenuItem.separator())
+
+        // Headings
         let h1Item = formatMenu.addItem(withTitle: "Heading 1", action: #selector(WindowController.applyHeading1(_:)), keyEquivalent: "1")
         h1Item.keyEquivalentModifierMask = [.command, .shift]
         h1Item.target = nil
@@ -124,6 +181,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let h3Item = formatMenu.addItem(withTitle: "Heading 3", action: #selector(WindowController.applyHeading3(_:)), keyEquivalent: "3")
         h3Item.keyEquivalentModifierMask = [.command, .shift]
         h3Item.target = nil
+
+        formatMenu.addItem(NSMenuItem.separator())
+
+        // Block formatting
+        let quoteItem = formatMenu.addItem(withTitle: "Blockquote", action: #selector(WindowController.applyBlockquote(_:)), keyEquivalent: "")
+        quoteItem.keyEquivalent = ">"
+        quoteItem.keyEquivalentModifierMask = [.command, .option]
+        quoteItem.target = nil
+
+        let codeBlockItem = formatMenu.addItem(withTitle: "Code Block", action: #selector(WindowController.applyCodeBlock(_:)), keyEquivalent: "")
+        codeBlockItem.keyEquivalent = "c"
+        codeBlockItem.keyEquivalentModifierMask = [.command, .option]
+        codeBlockItem.target = nil
+
+        let linkItem = formatMenu.addItem(withTitle: "Insert Link", action: #selector(WindowController.applyLink(_:)), keyEquivalent: "l")
+        linkItem.keyEquivalentModifierMask = [.command, .shift]
+        linkItem.target = nil
 
         mainMenu.addItem(formatMenuItem)
 

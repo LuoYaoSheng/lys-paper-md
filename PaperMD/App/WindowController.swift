@@ -163,6 +163,10 @@ extension WindowController {
         insertMarkdownAroundSelection(prefix: "`", suffix: "`")
     }
 
+    @objc func applyStrikethrough(_ sender: Any?) {
+        insertMarkdownAroundSelection(prefix: "~~", suffix: "~~")
+    }
+
     @objc func applyHeading1(_ sender: Any?) {
         insertMarkdownAtLineStart(prefix: "# ")
     }
@@ -173,6 +177,18 @@ extension WindowController {
 
     @objc func applyHeading3(_ sender: Any?) {
         insertMarkdownAtLineStart(prefix: "### ")
+    }
+
+    @objc func applyBlockquote(_ sender: Any?) {
+        insertMarkdownAtLineStart(prefix: "> ")
+    }
+
+    @objc func applyCodeBlock(_ sender: Any?) {
+        insertMarkdownBlock(wrappedIn: "```")
+    }
+
+    @objc func applyLink(_ sender: Any?) {
+        insertMarkdownLink()
     }
 
     @objc func toggleFocusMode(_ sender: Any?) {
@@ -197,10 +213,16 @@ extension WindowController {
         if action == #selector(applyBold(_:)) ||
            action == #selector(applyItalic(_:)) ||
            action == #selector(applyCode(_:)) ||
-           action == #selector(applyHeading1(_:)) ||
-           action == #selector(applyHeading2(_:)) ||
-           action == #selector(applyHeading3(_:)) {
+           action == #selector(applyStrikethrough(_:)) ||
+           action == #selector(applyLink(_:)) {
             return (editorView?.textView.selectedRange.length ?? 0) > 0
+        }
+        if action == #selector(applyHeading1(_:)) ||
+           action == #selector(applyHeading2(_:)) ||
+           action == #selector(applyHeading3(_:)) ||
+           action == #selector(applyBlockquote(_:)) ||
+           action == #selector(applyCodeBlock(_:)) {
+            return true
         }
         if action == #selector(toggleFocusMode(_:)) ||
            action == #selector(toggleSidebar(_:)) {
@@ -260,6 +282,51 @@ extension WindowController {
         // Position cursor after the prefix
         let newCursorPos = lineStart + prefix.count
         textView.setSelectedRange(NSRange(location: newCursorPos, length: 0))
+    }
+
+    private func insertMarkdownBlock(wrappedIn marker: String) {
+        guard let textView = editorView?.textView else { return }
+
+        let text = textView.string as NSString
+        let selectedRange = textView.selectedRange
+
+        let selectedText = selectedRange.length > 0 ? text.substring(with: selectedRange) : ""
+        let blockContent = selectedText.isEmpty ? "" : selectedText
+
+        // Create code block with markers on separate lines
+        let insertion = "\n\(marker)\n\(blockContent)\n\(marker)\n"
+        textView.replaceCharacters(in: selectedRange, with: insertion)
+
+        // Position cursor inside the block
+        let newCursorPos = selectedRange.location + marker.count + 2  // +2 for newlines
+        textView.setSelectedRange(NSRange(location: newCursorPos, length: 0))
+    }
+
+    private func insertMarkdownLink() {
+        guard let textView = editorView?.textView else { return }
+
+        let selectedRange = textView.selectedRange
+
+        if selectedRange.length > 0 {
+            // Wrap selected text as link text
+            let text = textView.string as NSString
+            let selectedText = text.substring(with: selectedRange)
+            let insertion = "[\(selectedText)](url)"
+            textView.replaceCharacters(in: selectedRange, with: insertion)
+
+            // Select "url" part for easy editing
+            let urlRangeStart = selectedRange.location + selectedText.count + 3  // +3 for [ and ](
+            let urlRange = NSRange(location: urlRangeStart, length: 3)
+            textView.setSelectedRange(urlRange)
+        } else {
+            // Insert empty link template
+            let insertion = "[text](url)"
+            textView.replaceCharacters(in: selectedRange, with: insertion)
+
+            // Select "text" part for easy editing
+            let textRange = NSRange(location: selectedRange.location + 1, length: 4)
+            textView.setSelectedRange(textRange)
+        }
     }
 }
 
