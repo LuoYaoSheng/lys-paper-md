@@ -12,6 +12,20 @@ class EditorView: NSView {
     // Reference to the document
     weak var document: Document?
 
+    // Focus mode callback
+    var onFocusModeChanged: ((Bool) -> Void)?
+
+    // Focus mode state
+    private var isFocusMode: Bool = false {
+        didSet {
+            onFocusModeChanged?(isFocusMode)
+            statusBar?.isHidden = isFocusMode
+        }
+    }
+
+    // Container view for split view and status bar
+    private var containerView: NSView!
+
     // The split view
     private var splitView: NSSplitView!
 
@@ -21,8 +35,11 @@ class EditorView: NSView {
     // The scroll view
     private var scrollView: NSScrollView!
 
+    // Status bar
+    private var statusBar: StatusBar!
+
     // The text view (public for Document to access)
-    let textView: NSTextView
+    let textView: MarkdownTextView
 
     // Custom text storage for Markdown formatting
     private let textStorage: NSTextStorage
@@ -41,7 +58,7 @@ class EditorView: NSView {
         layoutManager.addTextContainer(textContainer)
 
         // Create text view with custom text storage
-        textView = NSTextView(frame: NSRect(x: 0, y: 0, width: frameRect.width, height: frameRect.height), textContainer: textContainer)
+        textView = MarkdownTextView(frame: NSRect(x: 0, y: 0, width: frameRect.width, height: frameRect.height), textContainer: textContainer)
 
         super.init(frame: frameRect)
 
@@ -57,15 +74,20 @@ class EditorView: NSView {
     }
 
     private func setupView() {
+        // Create container view
+        containerView = NSView(frame: bounds)
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(containerView)
+
         // Create split view
-        splitView = NSSplitView(frame: bounds)
+        splitView = NSSplitView()
         splitView.dividerStyle = .thin
         splitView.isVertical = true
-        splitView.autoresizingMask = [.width, .height]
+        splitView.translatesAutoresizingMaskIntoConstraints = false
 
         // Create outline sidebar
-        let outlineFrame = NSRect(x: 0, y: 0, width: 200, height: bounds.height)
-        outlineView = OutlineView(frame: outlineFrame)
+        outlineView = OutlineView()
+        outlineView.translatesAutoresizingMaskIntoConstraints = false
 
         // Set up heading click handler
         outlineView.onHeadingSelected = { [weak self] (lineNumber: Int) in
@@ -75,11 +97,11 @@ class EditorView: NSView {
         // Note: document will be set by makeWindowControllers in Document.swift
 
         // Create scroll view for text
-        scrollView = NSScrollView(frame: NSRect(x: 200, y: 0, width: bounds.width - 200, height: bounds.height))
+        scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
-        scrollView.autoresizingMask = [.width, .height]
         scrollView.borderType = .noBorder
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
 
         // Configure text view
         textView.isVerticallyResizable = true
@@ -109,8 +131,34 @@ class EditorView: NSView {
         // Set sidebar width
         splitView.setPosition(200, ofDividerAt: 0)
 
-        // Add to view
-        addSubview(splitView)
+        // Create status bar
+        statusBar = StatusBar()
+        statusBar.translatesAutoresizingMaskIntoConstraints = false
+
+        // Add split view and status bar to container
+        containerView.addSubview(splitView)
+        containerView.addSubview(statusBar)
+
+        // Layout constraints
+        NSLayoutConstraint.activate([
+            // Container fills the view
+            containerView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            containerView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            containerView.topAnchor.constraint(equalTo: topAnchor),
+            containerView.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            // Split view fills container except status bar
+            splitView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            splitView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            splitView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            splitView.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
+
+            // Status bar at bottom
+            statusBar.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            statusBar.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            statusBar.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            statusBar.heightAnchor.constraint(equalToConstant: 28)
+        ])
 
         // Listen for text changes to mark document as edited and apply formatting
         NotificationCenter.default.addObserver(
@@ -134,6 +182,15 @@ class EditorView: NSView {
 
         // Update outline
         updateOutline()
+
+        // Update status bar stats
+        updateStatusBar()
+    }
+
+    private func updateStatusBar() {
+        let text = textView.string
+        let stats = DocumentStats(text: text)
+        statusBar.stats = stats
     }
 
     private func applyMarkdownFormatting() {
@@ -180,6 +237,45 @@ class EditorView: NSView {
         // Flash the selection to show where we jumped
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.textView.setSelectedRange(NSRange(location: charIndex, length: 0))
+        }
+    }
+
+    // MARK: - Focus Mode
+
+    func toggleFocusMode() {
+        isFocusMode.toggle()
+        updateFocusMode()
+    }
+
+    private func updateFocusMode() {
+        // Animate sidebar collapse/expand
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            context.allowsImplicitAnimation = true
+
+            if isFocusMode {
+                // Hide sidebar by collapsing to zero width
+                splitView.setPosition(0, ofDividerAt: 0)
+                outlineView.isHidden = true
+            } else {
+                // Show sidebar by restoring to 200px
+                outlineView.isHidden = false
+                splitView.setPosition(200, ofDividerAt: 0)
+            }
+        }
+    }
+
+    // MARK: - Sidebar Toggle
+
+    func toggleSidebar() {
+        // Toggle sidebar visibility
+        let isCollapsed = splitView.isSubviewCollapsed(outlineView)
+        if isCollapsed {
+            outlineView.isHidden = false
+            splitView.setPosition(200, ofDividerAt: 0)
+        } else {
+            splitView.setPosition(0, ofDividerAt: 0)
+            outlineView.isHidden = true
         }
     }
 }

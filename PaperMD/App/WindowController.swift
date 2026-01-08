@@ -11,9 +11,25 @@ class WindowController: NSWindowController {
 
     private var toolbar: NSToolbar?
 
+    // Reference to editor view for formatting operations
+    private weak var editorView: EditorView? {
+        didSet {
+            editorView?.onFocusModeChanged = { [weak self] isActive in
+                self?.updateFocusModeUI(isActive)
+            }
+        }
+    }
+
     override func windowDidLoad() {
         super.windowDidLoad()
         setupToolbar()
+
+        // Cache reference to editor view for formatting operations
+        // EditorView is the main content view containing the split view
+        if let contentView = window?.contentView,
+           let editor = contentView.subviews.first as? EditorView {
+            editorView = editor
+        }
     }
 
     private func setupToolbar() {
@@ -30,8 +46,7 @@ class WindowController: NSWindowController {
     // MARK: - Toolbar Actions
 
     @objc private func toggleSidebar(_ sender: Any?) {
-        // Toggle sidebar by sending notification
-        NotificationCenter.default.post(name: .toggleSidebar, object: nil)
+        editorView?.toggleSidebar()
     }
 
     @objc private func togglePreview(_ sender: Any?) {
@@ -137,15 +152,32 @@ extension WindowController: NSToolbarDelegate {
         insertMarkdownAroundSelection(prefix: "`", suffix: "`")
     }
 
+    @objc private func applyHeading1(_ sender: Any?) {
+        insertMarkdownAtLineStart(prefix: "# ")
+    }
+
+    @objc private func applyHeading2(_ sender: Any?) {
+        insertMarkdownAtLineStart(prefix: "## ")
+    }
+
+    @objc private func applyHeading3(_ sender: Any?) {
+        insertMarkdownAtLineStart(prefix: "### ")
+    }
+
+    @objc private func toggleFocusMode(_ sender: Any?) {
+        editorView?.toggleFocusMode()
+    }
+
+    private func updateFocusModeUI(_ isActive: Bool) {
+        // Update UI to reflect focus mode state
+        // Could hide toolbar, change background, etc.
+        window?.toolbar?.isVisible = !isActive
+    }
+
     private func insertMarkdownAroundSelection(prefix: String, suffix: String) {
-        guard let window = window,
-              let editorView = window.contentView?.subviews.first?.subviews.first?.subviews.first as? EditorView else {
-            return
-        }
+        guard let textView = editorView?.textView else { return }
 
-        let textView = editorView.textView
         let selectedRange = textView.selectedRange
-
         guard selectedRange.length > 0 else { return }
 
         let text = textView.string
@@ -158,6 +190,34 @@ extension WindowController: NSToolbarDelegate {
         // Select the formatted text
         let newRange = NSRange(location: selectedRange.location, length: formattedText.count)
         textView.setSelectedRange(newRange)
+    }
+
+    private func insertMarkdownAtLineStart(prefix: String) {
+        guard let textView = editorView?.textView else { return }
+
+        let text = textView.string as NSString
+        let selectedRange = textView.selectedRange
+
+        // Find the start of the current line
+        let lineStart = text.lineRange(for: selectedRange).location
+
+        // Check if line already starts with a heading marker
+        let lineRange = text.lineRange(for: NSRange(location: lineStart, length: 0))
+        let line = text.substring(with: lineRange)
+
+        // Remove existing heading markers if present
+        var trimmedLine = line
+        while trimmedLine.hasPrefix("#") {
+            trimmedLine = String(trimmedLine.dropFirst()).trimmingCharacters(in: .whitespaces)
+        }
+
+        // Replace the line with heading prefix
+        let newLine = "\(prefix)\(trimmedLine)"
+        textView.replaceCharacters(in: lineRange, with: newLine)
+
+        // Position cursor after the prefix
+        let newCursorPos = lineStart + prefix.count
+        textView.setSelectedRange(NSRange(location: newCursorPos, length: 0))
     }
 }
 
