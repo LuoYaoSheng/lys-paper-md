@@ -38,7 +38,7 @@ class Document: NSDocument {
             backing: .buffered,
             defer: false
         )
-        window.title = "Untitled"
+        window.title = displayName.isEmpty ? "Untitled" : displayName
 
         // Create editor view
         let editorView = EditorView(frame: contentRect)
@@ -57,26 +57,37 @@ class Document: NSDocument {
 
         window.center()
 
-        // Set up window controller
-        let windowController = NSWindowController(window: window)
+        // Create and add window controller
+        let windowController = WindowController(window: window)
         self.addWindowController(windowController)
 
-        // Show window
+        // Show window and set first responder
         window.makeKeyAndOrderFront(nil)
-
-        // Make text view first responder
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            window.makeFirstResponder(editorView.textView)
-        }
+        window.makeFirstResponder(editorView.textView)
     }
 
     override func data(ofType typeName: String) throws -> Data {
-        // Get current text from text view
+        // Get current text from text view and convert visual bullets back to markdown
         if let textView = textView {
-            rawText = textView.string
+            var text = textView.string
+
+            // Convert "• " back to "- " for list items (preserves user intent)
+            text = text.replacingOccurrences(of: "• ", with: "- ")
+
+            rawText = text
         }
-        NSLog("PaperMD: data(ofType:) called, fileURL: \(String(describing: fileURL)), returning \(rawText.count) characters")
+        NSLog("PaperMD: data(ofType:) called, typeName: \(typeName), fileURL: \(fileURL?.path ?? "nil"), isEdited: \(isDocumentEdited), returning \(rawText.count) characters")
         return rawText.data(using: .utf8) ?? Data()
+    }
+
+    override func save(_ sender: Any?) {
+        NSLog("PaperMD: save called, fileURL: \(fileURL?.path ?? "none")")
+        super.save(sender)
+    }
+
+    override func writeSafely(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType) throws {
+        NSLog("PaperMD: writeSafely called, url: \(url.path), typeName: \(typeName), saveOperation: \(saveOperation.rawValue)")
+        try super.writeSafely(to: url, ofType: typeName, for: saveOperation)
     }
 
     override func read(from data: Data, ofType typeName: String) throws {
@@ -85,9 +96,14 @@ class Document: NSDocument {
     }
 
     override func prepareSavePanel(_ savePanel: NSSavePanel) -> Bool {
-        NSLog("PaperMD: prepareSavePanel called")
+        let fileURLPath = fileURL?.path ?? "nil"
+        NSLog("PaperMD: prepareSavePanel called, displayName: \(displayName), fileURL: \(fileURLPath), isEdited: \(isDocumentEdited)")
         // Set default file extension to .md
-        savePanel.allowedFileTypes = ["md"]
+        if #available(macOS 12.0, *) {
+            savePanel.allowedContentTypes = [.plainText]
+        } else {
+            savePanel.allowedFileTypes = ["md"]
+        }
         savePanel.allowsOtherFileTypes = true
         savePanel.canCreateDirectories = true
 
@@ -98,6 +114,8 @@ class Document: NSDocument {
             // Ensure current name has .md extension
             if !displayName.hasSuffix(".md") {
                 savePanel.nameFieldStringValue = displayName + ".md"
+            } else {
+                savePanel.nameFieldStringValue = displayName
             }
         }
 

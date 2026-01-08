@@ -10,6 +10,8 @@
 		A100001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100011 /* AppDelegate.swift */; };
 		A100002 /* Document.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100012 /* Document.swift */; };
 		A100003 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100013 /* EditorView.swift */; };
+		A100004 /* MarkdownFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100015 /* MarkdownFormatter.swift */; };
+		A100006 /* WindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100014 /* WindowController.swift */; };
 		A100005 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A100022 /* Main.storyboard */; };
 /* End PBXBuildFile section */
 
@@ -18,6 +20,8 @@
 		A100011 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		A100012 /* Document.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Document.swift; sourceTree = "<group>"; };
 		A100013 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
+		A100014 /* WindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowController.swift; sourceTree = "<group>"; };
+		A100015 /* MarkdownFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownFormatter.swift; sourceTree = "<group>"; };
 		A100021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A100022 /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
 		A100023 /* PaperMD.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PaperMD.entitlements; sourceTree = "<group>"; };
@@ -65,6 +69,8 @@
 				A100011 /* AppDelegate.swift */,
 				A100012 /* Document.swift */,
 				A100013 /* EditorView.swift */,
+				A100015 /* MarkdownFormatter.swift */,
+				A100014 /* WindowController.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -151,6 +157,8 @@
 				A100001 /* AppDelegate.swift in Sources */,
 				A100002 /* Document.swift in Sources */,
 				A100003 /* EditorView.swift in Sources */,
+				A100004 /* MarkdownFormatter.swift in Sources */,
+				A100006 /* WindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
