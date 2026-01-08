@@ -6,9 +6,16 @@
 //
 
 import Cocoa
+import UniformTypeIdentifiers
 
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
+
+    // Preferences window controller
+    private var preferencesWindowController: PreferencesWindowController?
+
+    // Recent documents menu reference
+    private var openRecentMenu: NSMenu?
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         NSLog("PaperMD: Application did finish launching")
@@ -43,8 +50,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         appMenu.addItem(withTitle: "About PaperMD", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(NSMenuItem.separator())
-        // Preferences menu item - action to be implemented
-        let prefsItem = appMenu.addItem(withTitle: "Preferences…", action: nil, keyEquivalent: ",")
+        // Preferences menu item
+        appMenu.addItem(withTitle: "Preferences…", action: #selector(showPreferences(_:)), keyEquivalent: ",")
         appMenu.addItem(NSMenuItem.separator())
         appMenu.addItem(withTitle: "Hide PaperMD", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         let hideOthersItem = appMenu.addItem(withTitle: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
@@ -63,12 +70,41 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         fileMenu.addItem(withTitle: "New", action: #selector(NSDocumentController.newDocument(_:)), keyEquivalent: "n")
         fileMenu.addItem(withTitle: "Open…", action: #selector(NSDocumentController.openDocument(_:)), keyEquivalent: "o")
+
+        // Open Recent submenu
+        let openRecentMenuItem = NSMenuItem()
+        openRecentMenuItem.title = "Open Recent"
+        openRecentMenu = NSMenu()
+        openRecentMenuItem.submenu = openRecentMenu
+
+        // NSDocumentController will automatically populate this menu
+        openRecentMenu?.addItem(withTitle: "Clear Menu", action: #selector(NSDocumentController.clearRecentDocuments(_:)), keyEquivalent: "")
+        fileMenu.addItem(openRecentMenuItem)
+
+        // Note: We'll set up the recent documents menu after the main menu is created
         fileMenu.addItem(NSMenuItem.separator())
         fileMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         let saveItem = fileMenu.addItem(withTitle: "Save", action: #selector(WindowController.saveDocument(_:)), keyEquivalent: "s")
         saveItem.target = nil  // Let responder chain handle it
         let saveAsItem = fileMenu.addItem(withTitle: "Save As…", action: #selector(WindowController.saveDocumentAs(_:)), keyEquivalent: "S")
         saveAsItem.target = nil
+        fileMenu.addItem(NSMenuItem.separator())
+
+        // Export submenu
+        let exportItem = NSMenuItem()
+        exportItem.title = "Export"
+        let exportMenu = NSMenu()
+        exportItem.submenu = exportMenu
+
+        exportMenu.addItem(withTitle: "Export to HTML…", action: #selector(exportToHTML(_:)), keyEquivalent: "e")
+        let htmlItem = exportMenu.item(withTitle: "Export to HTML…")
+        htmlItem?.keyEquivalentModifierMask = [.control, .command]
+
+        exportMenu.addItem(withTitle: "Export to PDF…", action: #selector(exportToPDF(_:)), keyEquivalent: "p")
+        let pdfItem = exportMenu.item(withTitle: "Export to PDF…")
+        pdfItem?.keyEquivalentModifierMask = [.control, .command]
+
+        fileMenu.addItem(exportItem)
 
         mainMenu.addItem(fileMenuItem)
 
@@ -226,7 +262,45 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(helpMenuItem)
         NSApp.helpMenu = helpMenu
 
+        // Set up recent documents menu
+        setupRecentDocumentsMenu()
+
         NSLog("PaperMD: Menu structure rebuilt programmatically")
+    }
+
+    private func setupRecentDocumentsMenu() {
+        guard let menu = openRecentMenu else { return }
+
+        // Clear existing items except for "Clear Menu"
+        let clearMenuItem = menu.items.first { $0.action == #selector(NSDocumentController.clearRecentDocuments(_:)) }
+        menu.removeAllItems()
+
+        // Add recent document URLs
+        let recentURLs = NSDocumentController.shared.recentDocumentURLs
+        for url in recentURLs {
+            let item = NSMenuItem(title: url.lastPathComponent, action: #selector(openRecentDocument(_:)), keyEquivalent: "")
+            item.representedObject = url
+            item.toolTip = url.path
+            menu.addItem(item)
+        }
+
+        if !recentURLs.isEmpty {
+            menu.addItem(NSMenuItem.separator())
+        }
+
+        // Add "Clear Menu" item
+        if let clearItem = clearMenuItem {
+            menu.addItem(clearItem)
+        }
+    }
+
+    @objc private func openRecentDocument(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { document, documentWasAlreadyOpen, error in
+            if let error = error {
+                NSLog("PaperMD: Failed to open recent document: \(error)")
+            }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -239,4 +313,55 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Let NSDocumentController handle file opening
         return true
     }
+
+    // MARK: - Export Actions
+
+    @objc func showPreferences(_ sender: Any?) {
+        if preferencesWindowController == nil {
+            preferencesWindowController = PreferencesWindowController()
+        }
+        preferencesWindowController?.showWindow(sender)
+    }
+
+    @objc func exportToHTML(_ sender: Any?) {
+        guard let document = NSDocumentController.shared.currentDocument,
+              let window = NSApp.keyWindow,
+              let editorView = window.contentView?.subviews.first as? EditorView else {
+            return
+        }
+
+        let savePanel = NSSavePanel()
+        savePanel.title = "Export to HTML"
+        savePanel.nameFieldStringValue = (document.fileURL?.deletingPathExtension().lastPathComponent ?? "document") + ".html"
+        savePanel.allowedContentTypes = [.html]
+        savePanel.canCreateDirectories = true
+
+        savePanel.beginSheetModal(for: window) { response in
+            if response == .OK, let url = savePanel.url {
+                let textView = editorView.textView
+                let html = ExportHelper.convertToHTML(markdown: textView.string)
+                do {
+                    try ExportHelper.saveToURL(html, url: url, fileType: .html)
+                } catch {
+                    NSLog("PaperMD: Failed to export HTML: \(error)")
+                }
+            }
+        }
+    }
+
+    @objc func exportToPDF(_ sender: Any?) {
+        guard let window = NSApp.keyWindow,
+              let editorView = window.contentView?.subviews.first as? EditorView else {
+            return
+        }
+
+        // Use print operation for PDF export
+        ExportHelper.printDocument(textView: editorView.textView, window: window)
+    }
+}
+
+// MARK: - UTType Extensions
+
+extension UTType {
+    static let html = UTType(filenameExtension: "html") ?? UTType("public.html")!
 }

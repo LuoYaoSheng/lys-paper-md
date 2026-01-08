@@ -18,6 +18,8 @@
 		A100009 /* MarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100018 /* MarkdownTextView.swift */; };
 		A100010 /* StatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100019 /* StatusBar.swift */; };
 		A100024 /* MenuActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020 /* MenuActions.swift */; };
+		A100025 /* ImageHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100026 /* ImageHandler.swift */; };
+		A100027 /* PreferencesWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100028 /* PreferencesWindowController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +37,8 @@
 		A100021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A100022 /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
 		A100023 /* PaperMD.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PaperMD.entitlements; sourceTree = "<group>"; };
+		A100026 /* ImageHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageHandler.swift; sourceTree = "<group>"; };
+		A100028 /* PreferencesWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesWindowController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,12 +83,14 @@
 				A100011 /* AppDelegate.swift */,
 				A100012 /* Document.swift */,
 				A100013 /* EditorView.swift */,
+				A100026 /* ImageHandler.swift */,
 				A100015 /* MarkdownFormatter.swift */,
 				A100016 /* OutlineView.swift */,
 				A100017 /* ExportHelper.swift */,
 				A100018 /* MarkdownTextView.swift */,
-				A100019 /* StatusBar.swift */,
 				A100020 /* MenuActions.swift */,
+				A100028 /* PreferencesWindowController.swift */,
+				A100019 /* StatusBar.swift */,
 				A100014 /* WindowController.swift */,
 			);
 			path = App;
@@ -172,12 +178,14 @@
 				A100001 /* AppDelegate.swift in Sources */,
 				A100002 /* Document.swift in Sources */,
 				A100003 /* EditorView.swift in Sources */,
+				A100025 /* ImageHandler.swift in Sources */,
 				A100004 /* MarkdownFormatter.swift in Sources */,
 				A100007 /* OutlineView.swift in Sources */,
 				A100008 /* ExportHelper.swift in Sources */,
 				A100009 /* MarkdownTextView.swift in Sources */,
-				A100010 /* StatusBar.swift in Sources */,
 				A100024 /* MenuActions.swift in Sources */,
+				A100027 /* PreferencesWindowController.swift in Sources */,
+				A100010 /* StatusBar.swift in Sources */,
 				A100006 /* WindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

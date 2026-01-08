@@ -9,6 +9,43 @@ import Cocoa
 
 class MarkdownTextView: NSTextView {
 
+    // MARK: - Properties
+
+    // Document URL for image storage
+    var documentURL: URL?
+
+    // Register for dragged types
+    override var acceptableDragTypes: [NSPasteboard.PasteboardType] {
+        return [
+            .png,
+            .tiff,
+            .fileURL,
+            .string
+        ]
+    }
+
+    // MARK: - Initialization
+
+    override init(frame frameRect: NSRect, textContainer container: NSTextContainer?) {
+        super.init(frame: frameRect, textContainer: container)
+        setupDragAndDrop()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setupDragAndDrop()
+    }
+
+    private func setupDragAndDrop() {
+        // Register for dragged types
+        registerForDraggedTypes([
+            .png,
+            .tiff,
+            .fileURL,
+            .string
+        ])
+    }
+
     // MARK: - First Responder
 
     override var acceptsFirstResponder: Bool {
@@ -59,9 +96,14 @@ class MarkdownTextView: NSTextView {
         return super.validateUserInterfaceItem(item)
     }
 
-    // MARK: - Paste as Plain Text
+    // MARK: - Paste as Plain Text / Image
 
     override func paste(_ sender: Any?) {
+        // First check for image in pasteboard
+        if ImageHandler.handlePastedImage(in: self, documentURL: documentURL) {
+            return
+        }
+
         // Always paste as plain text to avoid bringing in unwanted formatting
         let pasteboard = NSPasteboard.general
         guard let plainText = pasteboard.string(forType: .string) else {
@@ -331,5 +373,78 @@ class MarkdownTextView: NSTextView {
         }
 
         return false
+    }
+
+    // MARK: - Drag and Drop
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if canAcceptDrag(sender) {
+            return .copy
+        }
+        return super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if canAcceptDrag(sender) {
+            return .copy
+        }
+        return super.draggingUpdated(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let pasteboard = sender.draggingPasteboard
+
+        // Check for image file URLs
+        if let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] {
+            for url in fileURLs {
+                // Try to load as image
+                if let image = NSImage(contentsOf: url) {
+                    let characterIndex = characterIndexForPoint(sender.draggingLocation)
+                    if ImageHandler.handleDroppedImage(in: self, at: characterIndex, image: image, documentURL: documentURL) {
+                        return true
+                    }
+                }
+            }
+        }
+
+        // Check for direct image data
+        if let imageData = pasteboard.data(forType: .png) ?? pasteboard.data(forType: .tiff),
+           let image = NSImage(data: imageData) {
+            let characterIndex = characterIndexForPoint(sender.draggingLocation)
+            return ImageHandler.handleDroppedImage(in: self, at: characterIndex, image: image, documentURL: documentURL)
+        }
+
+        // Default handling for text
+        return super.performDragOperation(sender)
+    }
+
+    override func concludeDragOperation(_ sender: NSDraggingInfo?) {
+        // Clean up after drag operation
+        super.concludeDragOperation(sender)
+    }
+
+    private func canAcceptDrag(_ sender: NSDraggingInfo) -> Bool {
+        let pasteboard = sender.draggingPasteboard
+
+        // Check for file URLs
+        if pasteboard.availableType(from: [.fileURL]) != nil {
+            return true
+        }
+
+        // Check for image data
+        if pasteboard.availableType(from: [.png, .tiff]) != nil {
+            return true
+        }
+
+        return false
+    }
+
+    private func characterIndexForPoint(_ point: NSPoint) -> Int {
+        let localPoint = convert(point, from: nil)
+        guard let layoutManager = layoutManager,
+              let textContainer = textContainer else {
+            return 0
+        }
+        return layoutManager.characterIndex(for: localPoint, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
     }
 }

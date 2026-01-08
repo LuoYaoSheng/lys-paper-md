@@ -21,14 +21,15 @@ class Document: NSDocument, DocumentTextProvider {
     // Reference to the text view for content sync
     weak var textView: NSTextView?
 
+    // Auto-save timer
+    private var autosaveTimer: Timer?
+
     // Disable window restoration
     override func encodeRestorableState(with coder: NSCoder) {}
     override func restoreState(with coder: NSCoder) {}
 
-    override class var autosavesInPlace: Bool {
-        // For new documents, we want to show the save dialog first
-        return false
-    }
+    // Note: autosavesInPlace is checked per document instance in hasUnautosavedChanges
+    // We rely on the user preference to control this behavior
 
     override func makeWindowControllers() {
         // Only create window controller if we don't have one
@@ -53,6 +54,9 @@ class Document: NSDocument, DocumentTextProvider {
 
         // Store text view reference
         self.textView = editorView.textView
+
+        // Set document URL on text view for image handling
+        editorView.textView.documentURL = fileURL
 
         // Load content into text view
         if !rawText.isEmpty {
@@ -95,12 +99,57 @@ class Document: NSDocument, DocumentTextProvider {
 
     override func writeSafely(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType) throws {
         NSLog("PaperMD: writeSafely called, url: \(url.path), typeName: \(typeName), saveOperation: \(saveOperation.rawValue)")
+        // Update text view's documentURL after saving
+        (textView as? MarkdownTextView)?.documentURL = url
         try super.writeSafely(to: url, ofType: typeName, for: saveOperation)
     }
 
     override func read(from data: Data, ofType typeName: String) throws {
         rawText = String(data: data, encoding: .utf8) ?? ""
         NSLog("PaperMD: read(from:) called, read \(rawText.count) characters")
+
+        // Update text view's documentURL after loading
+        (textView as? MarkdownTextView)?.documentURL = fileURL
+
+        // Start autosave timer if enabled and document has a file URL
+        if fileURL != nil && Preferences.shared.autosaveEnabled {
+            startAutosaveTimer()
+        }
+    }
+
+    override func updateChangeCount(_ change: NSDocument.ChangeType) {
+        super.updateChangeCount(change)
+
+        // Start or restart autosave timer when document is modified
+        if fileURL != nil && Preferences.shared.autosaveEnabled {
+            startAutosaveTimer()
+        }
+    }
+
+    private func startAutosaveTimer() {
+        // Invalidate existing timer
+        autosaveTimer?.invalidate()
+
+        // Create new timer with 3 second interval
+        autosaveTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
+            guard let self = self, self.fileURL != nil else { return }
+            if self.isDocumentEdited {
+                NSLog("PaperMD: Autosaving document")
+                // Use Task for async autosave
+                Task { @MainActor in
+                    do {
+                        try await self.autosave(withImplicitCancellability: false)
+                    } catch {
+                        NSLog("PaperMD: Autosave failed: \(error)")
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopAutosaveTimer() {
+        autosaveTimer?.invalidate()
+        autosaveTimer = nil
     }
 
     override func prepareSavePanel(_ savePanel: NSSavePanel) -> Bool {
