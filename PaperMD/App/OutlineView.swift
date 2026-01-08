@@ -155,7 +155,8 @@ extension OutlineView: NSTableViewDelegate {
         guard row < headings.count else { return nil }
 
         let heading = headings[row]
-        let cellId = NSUserInterfaceItemIdentifier("OutlineCell")
+        // Use unique identifier per heading level for proper cell reuse
+        let cellId = NSUserInterfaceItemIdentifier("OutlineCell-Level\(heading.level)")
 
         var cell = tableView.makeView(withIdentifier: cellId, owner: nil) as? NSTableCellView
         if cell == nil {
@@ -171,24 +172,20 @@ extension OutlineView: NSTableViewDelegate {
             cell?.addSubview(textField)
             cell?.textField = textField
 
-            // Add constraints
+            // Calculate indentation for this level
+            let indent = CGFloat(heading.level - 1) * 16
+
+            // Add constraints with proper indentation
             NSLayoutConstraint.activate([
-                textField.leadingAnchor.constraint(equalTo: cell!.leadingAnchor, constant: 4),
+                textField.leadingAnchor.constraint(equalTo: cell!.leadingAnchor, constant: 4 + indent),
                 textField.trailingAnchor.constraint(equalTo: cell!.trailingAnchor, constant: -4),
                 textField.centerYAnchor.constraint(equalTo: cell!.centerYAnchor)
             ])
         }
 
-        // Add indentation based on heading level using leading constraint
-        let indent = CGFloat(heading.level - 1) * 16
         if let textField = cell?.textField {
             textField.stringValue = heading.title
             textField.font = headingFont(for: heading.level)
-
-            // Update leading constraint for indentation
-            if let constraint = textField.constraints.first(where: { $0.firstAttribute == .leading }) {
-                constraint.constant = 4 + indent
-            }
         }
 
         return cell
