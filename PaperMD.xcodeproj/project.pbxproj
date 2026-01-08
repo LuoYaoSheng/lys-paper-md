@@ -13,6 +13,8 @@
 		A100004 /* MarkdownFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100015 /* MarkdownFormatter.swift */; };
 		A100006 /* WindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100014 /* WindowController.swift */; };
 		A100005 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A100022 /* Main.storyboard */; };
+		A100007 /* OutlineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100016 /* OutlineView.swift */; };
+		A100008 /* ExportHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100017 /* ExportHelper.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +24,8 @@
 		A100013 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		A100014 /* WindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowController.swift; sourceTree = "<group>"; };
 		A100015 /* MarkdownFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownFormatter.swift; sourceTree = "<group>"; };
+		A100016 /* OutlineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineView.swift; sourceTree = "<group>"; };
+		A100017 /* ExportHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportHelper.swift; sourceTree = "<group>"; };
 		A100021 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A100022 /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
 		A100023 /* PaperMD.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PaperMD.entitlements; sourceTree = "<group>"; };
@@ -70,6 +74,8 @@
 				A100012 /* Document.swift */,
 				A100013 /* EditorView.swift */,
 				A100015 /* MarkdownFormatter.swift */,
+				A100016 /* OutlineView.swift */,
+				A100017 /* ExportHelper.swift */,
 				A100014 /* WindowController.swift */,
 			);
 			path = App;
@@ -158,6 +164,8 @@
 				A100002 /* Document.swift in Sources */,
 				A100003 /* EditorView.swift in Sources */,
 				A100004 /* MarkdownFormatter.swift in Sources */,
+				A100007 /* OutlineView.swift in Sources */,
+				A100008 /* ExportHelper.swift in Sources */,
 				A100006 /* WindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

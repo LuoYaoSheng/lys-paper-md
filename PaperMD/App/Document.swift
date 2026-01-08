@@ -7,7 +7,13 @@
 
 import Cocoa
 
-class Document: NSDocument {
+// Protocol for document text access - used by OutlineView
+protocol DocumentTextProvider: AnyObject {
+    func getText() -> String
+}
+
+// Make Document conform to DocumentTextProvider for OutlineView
+class Document: NSDocument, DocumentTextProvider {
 
     // The raw markdown text content (source of truth)
     private var rawText: String = ""

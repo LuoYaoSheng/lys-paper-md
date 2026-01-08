@@ -38,6 +38,7 @@ class MarkdownFormatter {
     private static let headingColor: NSColor = .systemBlue
     private static let listMarkerColor: NSColor = .systemRed  // Very distinct color for list markers
     private static let tertiaryColor: NSColor = .tertiaryLabelColor
+    private static let hrColor: NSColor = .separatorColor
 
     // MARK: - Public Methods
 
@@ -63,6 +64,12 @@ class MarkdownFormatter {
 
     private static func applyLineFormatting(line: String, range: NSRange, to textStorage: NSTextStorage) {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+        // Horizontal rules (---, ***, ___)
+        if isHorizontalRule(trimmed) {
+            applyHorizontalRuleFormatting(range: range, to: textStorage)
+            return
+        }
 
         // Headers (# ## ### etc.)
         if trimmed.hasPrefix("#") {
@@ -223,15 +230,11 @@ class MarkdownFormatter {
             // Get the actual marker text from storage (to detect if already formatted)
             let markerText = (textStorage.string as NSString).substring(with: markerRange)
 
-            NSLog("PaperMD: List formatting - line: '\(line)', markerRange: \(markerRange), markerText: '\(markerText)'")
-
             // Check if this is an ordered list (numbered) or unordered list
             if isOrderedList(line) {
-                NSLog("PaperMD: Detected ordered list")
                 // Ordered list: just dim the marker, don't replace
                 textStorage.addAttribute(.foregroundColor, value: tertiaryColor, range: markerRange)
             } else {
-                NSLog("PaperMD: Detected unordered list")
                 // Unordered list: replace with bullet
                 // Check if already formatted
                 if markerText.contains("•") {
@@ -277,6 +280,26 @@ class MarkdownFormatter {
         return true
     }
 
+    private static func isHorizontalRule(_ trimmed: String) -> Bool {
+        // Horizontal rules: ---, ***, ___ (with 3 or more characters)
+        guard trimmed.count >= 3 else { return false }
+
+        let firstChar = trimmed.first
+        guard firstChar == "-" || firstChar == "*" || firstChar == "_" else { return false }
+
+        // All non-whitespace chars must be the same
+        for char in trimmed where !char.isWhitespace {
+            if char != firstChar { return false }
+        }
+
+        return true
+    }
+
+    private static func applyHorizontalRuleFormatting(range: NSRange, to textStorage: NSTextStorage) {
+        // Apply separator color and slightly thinner font
+        textStorage.addAttribute(.foregroundColor, value: hrColor, range: range)
+    }
+
     private static func applyInlineFormatting(line: String, range: NSRange, to textStorage: NSTextStorage) {
         // Bold (**text**)
         if line.contains("**") {
@@ -299,6 +322,14 @@ class MarkdownFormatter {
             }
         }
 
+        // Strikethrough (~~text~~)
+        if line.contains("~~") {
+            let matches = findInlineMatches(pattern: #"(~)(.+?)(~)"#, in: line)
+            for match in matches {
+                applyInlineStyle(match: match, line: line, baseRange: range, to: textStorage, attributes: [.strikethroughStyle: 1])
+            }
+        }
+
         // Inline code (`code`)
         if line.contains("`") {
             let matches = findInlineMatches(pattern: #"(`)(.+?)(`)"#, in: line)
@@ -313,6 +344,15 @@ class MarkdownFormatter {
             for match in matches {
                 // For links, capture group 2 is the display text
                 applyInlineStyle(match: match, line: line, baseRange: range, to: textStorage, contentGroup: 2, attributes: [.foregroundColor: NSColor.systemBlue, .underlineStyle: 1])
+            }
+        }
+
+        // Images ![alt](url)
+        if line.contains("![") {
+            let matches = findInlineMatches(pattern: #"(!\[(.+?)(\]\()(.+?)(\))"#, in: line)
+            for match in matches {
+                // For images, capture group 2 is the alt text
+                applyInlineStyle(match: match, line: line, baseRange: range, to: textStorage, contentGroup: 2, attributes: [.foregroundColor: NSColor.systemPurple])
             }
         }
     }
