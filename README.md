@@ -1,135 +1,121 @@
-# PaperMD
+<div align="center">
 
-A native macOS Markdown editor focused on ultimate input experience for long-form writing, documentation, and technical writing.
+  ## lys IoT DevTools
 
-## Features
+  **PaperMD**
 
-- **Native macOS App**: Built with AppKit for the best performance and native feel
-- **Live Preview**: Real-time Markdown syntax highlighting as you type
-- **Smart Editing**: Auto list continuation, tab indentation, and smart list item termination
-- **Outline View**: Auto-generated table of contents from headers for easy navigation
-- **Focus Mode**: Hide distractions and focus on your writing
-- **Full Keyboard Support**: Comprehensive keyboard shortcuts for all operations
-- **Paste as Plain Text**: Automatically strips formatting when pasting from external sources
+  原生 macOS Markdown 编辑器，极致输入体验
 
-## Keyboard Shortcuts
+  **作者**: 罗耀生 (寺西)
 
-### File Operations
-| Shortcut | Action |
-|----------|--------|
-| `⌘N` | New Document |
-| `⌘O` | Open… |
-| `⌘W` | Close Window |
-| `⌘S` | Save |
-| `⌘⇧S` | Save As… |
-| `⌘Q` | Quit |
+  [![lys IoT DevTools](https://img.shields.io/badge/lys-IoT--DevTools-blue)](https://gitee.com/luoyaosheng)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-### Edit Operations
-| Shortcut | Action |
-|----------|--------|
-| `⌘Z` | Undo |
-| `⌘⇧Z` | Redo |
-| `⌘X` | Cut |
-| `⌘C` | Copy |
-| `⌘V` | Paste (as plain text) |
-| `⌘A` | Select All |
+</div>
 
-### Find & Replace
-| Shortcut | Action |
-|----------|--------|
-| `⌘F` | Find… |
-| `⌘G` | Find Next |
-| `⌘⇧G` | Find Previous |
-| `⌘⌥F` | Replace |
+---
 
-### Spelling
-| Shortcut | Action |
-|----------|--------|
-| `⌘:` | Show Spelling and Grammar |
-| `⌘;` | Check Document Now |
+## 简介
 
-### Text Transformations
-| Shortcut | Action |
-|----------|--------|
-| `⌃⌘U` | Make Upper Case |
-| `⌃⌘L` | Make Lower Case |
-| `⌥⌘C` | Capitalize |
+PaperMD 是一款专为 macOS 设计的原生 Markdown 编辑器，专注于极致的输入体验。适用于长文写作、文档编写和技术写作。
 
-### Navigation
-| Shortcut | Action |
-|----------|--------|
-| `⌘J` | Jump to Selection / Center in View |
+## 核心特性
 
-### Format Menu
-| Shortcut | Action |
-|----------|--------|
-| `⌘B` | Bold |
-| `⌘I` | Italic |
-| `⌘K` | Inline Code |
-| `⌥⌘S` | Strikethrough |
-| `⇧⌘1` | Heading 1 |
-| `⇧⌘2` | Heading 2 |
-| `⇧⌘3` | Heading 3 |
-| `⌥⌘>` | Blockquote |
-| `⌥⌘C` | Code Block |
-| `⇧⌘L` | Insert Link |
+- **原生 macOS 应用**：使用 AppKit 构建，性能和体验都是原生的
+- **实时预览**：输入时实时 Markdown 语法高亮
+- **智能编辑**：自动列表续行、Tab 缩进、智能列表项终止
+- **大纲视图**：从标题自动生成目录，方便导航
+- **专注模式**：隐藏干扰，专注于写作
+- **全键盘支持**：所有操作都有快捷键
+- **纯文本粘贴**：从外部粘贴时自动去除格式
 
-### View
-| Shortcut | Action |
-|----------|--------|
-| `⌃⌘O` | Toggle Sidebar |
-| `⌘F` | Toggle Focus Mode |
+## 快捷键
 
-### Window
-| Shortcut | Action |
-|----------|--------|
-| `⌘M` | Minimize |
-| `⌘H` | Hide |
-| `⌥⌘H` | Hide Others |
+### 文件操作
+| 快捷键 | 操作 |
+|--------|------|
+| `⌘N` | 新建文档 |
+| `⌘O` | 打开… |
+| `⌘W` | 关闭窗口 |
+| `⌘S` | 保存 |
+| `⌘⇧S` | 另存为… |
+| `⌘Q` | 退出 |
 
-## Smart Editing Features
+### 编辑操作
+| 快捷键 | 操作 |
+|--------|------|
+| `⌘Z` | 撤销 |
+| `⇧⌘Z` | 重做 |
+| `⌘X` | 剪切 |
+| `⌘C` | 复制 |
+| `⌘V` | 粘贴 (纯文本) |
+| `⌘A` | 全选 |
 
-### List Continuation
-When you press Enter at the end of a list item, a new list item is automatically created:
-- Unordered lists (`- `, `* `, `+ `) continue with the same marker
-- Ordered lists (`1. `, `2. `, etc.) continue with incremented numbers
-- Task lists (`- [ ] `) continue with unchecked items
-- Press Enter on an empty list item to terminate the list
+### 格式化
+| 快捷键 | 操作 |
+|--------|------|
+| `⌘B` | 粗体 |
+| `⌘I` | 斜体 |
+| `⌘K` | 行内代码 |
+| `⇧⌘1` | 一级标题 |
+| `⇧⌘2` | 二级标题 |
+| `⇧⌘3` | 三级标题 |
 
-### Tab Indentation
-- Press `Tab` to indent list items (adds 2 spaces)
-- Press `⇧Tab` to unindent list items (removes 2 spaces)
+## 智能编辑功能
 
-### Smart Paste
-Pasting content from external sources automatically strips rich formatting, inserting only plain text.
+### 列表续行
+在列表项末尾按 Enter，自动创建新列表项：
+- 无序列表 (`- `, `* `, `+ `) 继续相同标记
+- 有序列表 (`1. `, `2. ` 等) 继续递增数字
+- 任务列表 (`- [ ] `) 继续未勾选项
+- 在空列表项按 Enter 终止列表
 
-## Requirements
+### Tab 缩进
+- 按 `Tab` 缩进列表项（增加 2 个空格）
+- 按 `⇧Tab` 取消缩进（减少 2 个空格）
 
-- macOS 12.0 or later
-- Xcode 14.0 or later to build from source
+## 技术栈
 
-## Building from Source
+| 组件 | 技术 |
+|------|------|
+| 语言 | Swift |
+| UI 框架 | AppKit |
+| 文档架构 | NSDocument |
+| 编辑引擎 | NSTextView + NSTextStorage |
+| 撤销系统 | NSUndoManager |
+
+## 系统要求
+
+- macOS 12.0 或更高版本
+- Xcode 14.0 或更高版本（从源码构建）
+
+## 构建方法
 
 ```bash
-git clone https://gitee.com/luoyaosheng/PaperMD.git
-cd PaperMD
+git clone https://gitee.com/luoyaosheng/lys-paper-md.git
+cd lys-paper-md
 open PaperMD.xcodeproj
 ```
 
-Then build and run in Xcode.
+然后在 Xcode 中构建并运行。
 
-## Architecture
+## 开发理念
 
-- **Language**: Swift
-- **UI Framework**: AppKit
-- **Document Architecture**: NSDocument-based
-- **Editing Engine**: NSTextView with NSTextStorage
-- **Undo System**: NSUndoManager
+**输入体验优先** - 我们宁愿慢一点，也不允许一次输入体验上的妥协。
 
-## License
+- 光标位置必须符合用户预期，永远不会因为渲染而跳转
+- 自动格式化绝不能移动光标位置
+- 中文输入法状态下，不进行布局重建或结构转换
+- 每个结构变更都必须可撤销
 
-MIT License - See LICENSE file for details
+## 许可证
 
-## Contributing
+MIT License
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+---
+
+<div align="center">
+
+  **lys IoT DevTools - 从硬件到云端的开源 IoT 开发工具链**
+
+</div>
