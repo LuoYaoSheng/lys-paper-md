@@ -65,6 +65,9 @@ class Document: NSDocument, DocumentTextProvider {
             editorView.textView.string = "# Hello PaperMD\n\nStart typing your Markdown here..."
         }
 
+        // Apply initial formatting after content is loaded
+        editorView.reapplyFormatting()
+
         window.center()
 
         // Set initial first responder before showing window
@@ -79,14 +82,10 @@ class Document: NSDocument, DocumentTextProvider {
     }
 
     override func data(ofType typeName: String) throws -> Data {
-        // Get current text from text view and convert visual bullets back to markdown
+        // Persist the raw Markdown source from the editor.
+        // Formatting must not mutate the underlying source text.
         if let textView = textView {
-            var text = textView.string
-
-            // Convert "• " back to "- " for list items (preserves user intent)
-            text = text.replacingOccurrences(of: "• ", with: "- ")
-
-            rawText = text
+            rawText = textView.string
         }
         NSLog("PaperMD: data(ofType:) called, typeName: \(typeName), fileURL: \(fileURL?.path ?? "nil"), isEdited: \(isDocumentEdited), returning \(rawText.count) characters")
         return rawText.data(using: .utf8) ?? Data()

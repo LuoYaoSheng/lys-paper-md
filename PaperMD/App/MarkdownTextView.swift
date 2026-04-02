@@ -133,6 +133,12 @@ class MarkdownTextView: NSTextView {
             return
         }
 
+        // During IME composition, never intercept editing keys for list logic.
+        if hasMarkedText() {
+            super.keyDown(with: event)
+            return
+        }
+
         // Handle Enter key for smart list continuation
         if keyCode == 36 && modifiers.isEmpty { // 36 is Return key
             if handleReturnKey() {

@@ -47,15 +47,20 @@ class EditorView: NSView {
 
         // Create layout manager
         let layoutManager = NSLayoutManager()
+        layoutManager.usesFontLeading = false
         textStorage.addLayoutManager(layoutManager)
 
-        // Create text container
-        let textContainer = NSTextContainer(containerSize: NSSize(width: frameRect.width, height: CGFloat.greatestFiniteMagnitude))
+        // Calculate content width (excluding sidebar)
+        let contentWidth = frameRect.width - 200
+
+        // Create text container with proper size
+        let textContainer = NSTextContainer(containerSize: NSSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude))
         textContainer.widthTracksTextView = true
+        textContainer.heightTracksTextView = false
         layoutManager.addTextContainer(textContainer)
 
         // Create text view with custom text storage
-        textView = MarkdownTextView(frame: NSRect(x: 0, y: 0, width: frameRect.width, height: frameRect.height), textContainer: textContainer)
+        textView = MarkdownTextView(frame: NSRect(x: 0, y: 0, width: contentWidth, height: frameRect.height), textContainer: textContainer)
 
         super.init(frame: frameRect)
 
@@ -100,11 +105,19 @@ class EditorView: NSView {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = .width
-        textView.textContainer?.containerSize = NSSize(width: bounds.width, height: CGFloat.greatestFiniteMagnitude)
+
+        // Calculate content width (total width minus sidebar minus status bar adjustment)
+        let contentWidth = max(bounds.width - 200, 100) // Minimum 100pt width
+
+        // Update text container size to match scroll view content area
+        textView.textContainer?.containerSize = NSSize(width: contentWidth, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.heightTracksTextView = false
+
         textView.font = NSFont.systemFont(ofSize: 16)
         textView.isEditable = true
         textView.isSelectable = true
+        textView.backgroundColor = .textBackgroundColor
 
         // IMPORTANT: Enable undo/redo by using the window's undoManager
         // This ensures typing actions are recorded for undo
@@ -148,6 +161,14 @@ class EditorView: NSView {
             name: NSText.didChangeNotification,
             object: textView
         )
+
+        // Listen for preference changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(preferencesChanged(_:)),
+            name: .preferencesChanged,
+            object: nil
+        )
     }
 
     deinit {
@@ -157,6 +178,13 @@ class EditorView: NSView {
     @objc private func textDidChange(_ notification: Notification) {
         // Mark document as edited whenever text changes
         document?.updateChangeCount(.changeDone)
+
+        // Avoid rebuilding formatting while the IME composition is active.
+        // This keeps marked text stable for Chinese/Japanese/Korean input.
+        if textView.hasMarkedText() {
+            updateStatusBar()
+            return
+        }
 
         // Apply Markdown formatting (deferred to avoid blocking input)
         applyMarkdownFormatting()
@@ -168,15 +196,42 @@ class EditorView: NSView {
         updateStatusBar()
     }
 
+    @objc private func preferencesChanged(_ notification: Notification) {
+        // Update font size in formatter
+        MarkdownFormatter.setFontSize(Preferences.shared.fontSize)
+
+        // Update text view font
+        textView.font = NSFont.systemFont(ofSize: CGFloat(Preferences.shared.fontSize))
+
+        // Reapply formatting
+        applyMarkdownFormatting()
+    }
+
     private func updateStatusBar() {
         let text = textView.string
         let stats = DocumentStats(text: text)
         statusBar.stats = stats
     }
 
+    // MARK: - Public Methods
+
+    func reapplyFormatting() {
+        // Apply formatting to entire document
+        guard let storage = textView.textStorage, textView.string.count > 0 else { return }
+        let fullRange = NSRange(location: 0, length: textView.string.count)
+        MarkdownFormatter.applyFormatting(to: storage, editedRange: fullRange)
+
+        // Update outline
+        updateOutline()
+
+        // Update status bar
+        updateStatusBar()
+    }
+
     private func applyMarkdownFormatting() {
         // Guard against empty text
         guard textView.string.count > 0 else { return }
+        guard !textView.hasMarkedText() else { return }
 
         // Get the edited range from the notification
         let editedRange = textView.selectedRange
@@ -184,6 +239,7 @@ class EditorView: NSView {
         // Apply formatting asynchronously to avoid blocking input
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let storage = self.textView.textStorage else { return }
+            guard !self.textView.hasMarkedText() else { return }
             MarkdownFormatter.applyFormatting(to: storage, editedRange: editedRange)
         }
     }
