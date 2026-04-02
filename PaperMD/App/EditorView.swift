@@ -7,7 +7,7 @@
 
 import Cocoa
 
-class EditorView: NSView {
+class EditorView: NSView, NSTextStorageDelegate {
 
     // Reference to the document
     weak var document: Document?
@@ -40,10 +40,13 @@ class EditorView: NSView {
 
     // Custom text storage for Markdown formatting
     private let textStorage: NSTextStorage
+    private var pendingEditedRange: NSRange?
+    private var isApplyingFormatting = false
 
     override init(frame frameRect: NSRect) {
         // Create custom text storage
         textStorage = NSTextStorage()
+        textStorage.delegate = nil
 
         // Create layout manager
         let layoutManager = NSLayoutManager()
@@ -66,6 +69,7 @@ class EditorView: NSView {
 
         // Set up the view
         setupView()
+        textStorage.delegate = self
 
         // Apply initial formatting
         applyMarkdownFormatting()
@@ -203,8 +207,8 @@ class EditorView: NSView {
         // Update text view font
         textView.font = NSFont.systemFont(ofSize: CGFloat(Preferences.shared.fontSize))
 
-        // Reapply formatting
-        applyMarkdownFormatting()
+        // Font changes affect the whole document, so reformat everything.
+        reapplyFormatting()
     }
 
     private func updateStatusBar() {
@@ -219,7 +223,10 @@ class EditorView: NSView {
         // Apply formatting to entire document
         guard let storage = textView.textStorage, textView.string.count > 0 else { return }
         let fullRange = NSRange(location: 0, length: textView.string.count)
+        isApplyingFormatting = true
+        defer { isApplyingFormatting = false }
         MarkdownFormatter.applyFormatting(to: storage, editedRange: fullRange)
+        pendingEditedRange = nil
 
         // Update outline
         updateOutline()
@@ -233,15 +240,38 @@ class EditorView: NSView {
         guard textView.string.count > 0 else { return }
         guard !textView.hasMarkedText() else { return }
 
-        // Get the edited range from the notification
-        let editedRange = textView.selectedRange
-
         // Apply formatting asynchronously to avoid blocking input
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let storage = self.textView.textStorage else { return }
             guard !self.textView.hasMarkedText() else { return }
+            guard !self.isApplyingFormatting else { return }
+
+            let editedRange = self.consumePendingEditedRange()
+                ?? NSRange(location: self.textView.selectedRange.location, length: 0)
+
+            self.isApplyingFormatting = true
+            defer { self.isApplyingFormatting = false }
             MarkdownFormatter.applyFormatting(to: storage, editedRange: editedRange)
         }
+    }
+
+    private func consumePendingEditedRange() -> NSRange? {
+        defer { pendingEditedRange = nil }
+        return pendingEditedRange
+    }
+
+    private func mergePendingEditedRange(_ newRange: NSRange) {
+        if let current = pendingEditedRange {
+            pendingEditedRange = NSUnionRange(current, newRange)
+        } else {
+            pendingEditedRange = newRange
+        }
+    }
+
+    func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
+        guard editedMask.contains(.editedCharacters) else { return }
+        guard !isApplyingFormatting else { return }
+        mergePendingEditedRange(editedRange)
     }
 
     private func updateOutline() {
