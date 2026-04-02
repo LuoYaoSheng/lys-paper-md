@@ -99,6 +99,12 @@ open PaperMD.xcodeproj
 
 然后在 Xcode 中构建并运行。
 
+如果只想快速确认当前编辑器没有明显回退，可以用：
+
+- [Tests/SyntaxHighlightingTest.md](./Tests/SyntaxHighlightingTest.md)
+
+这份样板文件覆盖了标题、列表、任务列表、代码块、引用、链接、图片和 HTML 标签等主要结构。
+
 ## 开发理念
 
 **输入体验优先** - 我们宁愿慢一点，也不允许一次输入体验上的妥协。
