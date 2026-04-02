@@ -5,6 +5,7 @@
 当前样板：
 
 - [SyntaxHighlightingTest.md](./SyntaxHighlightingTest.md)
+- [WritingSessionFixture.md](./WritingSessionFixture.md)
 
 这份文件覆盖了当前编辑器最敏感的结构：
 
@@ -17,11 +18,19 @@
 - 分割线
 - HTML 标签
 
+`WritingSessionFixture.md` 则更偏真实写作场景，适合验证：
+
+- 中文长段落输入
+- 标题、列表、任务列表混排
+- 引用、代码块、链接混排
+- 周更 / 学习文章这类真实内容的输入和保存体验
+
 当前阶段的使用方式很简单：
 
 1. 用 `PaperMD` 打开 `SyntaxHighlightingTest.md`
-2. 逐段确认高亮、列表、任务列表、代码块和引用显示是否异常
-3. 用中文输入法在不同结构中输入
-4. 验证 Enter / Tab / Backspace / Undo / Redo 没有明显回退
+2. 再打开 `WritingSessionFixture.md`
+3. 逐段确认高亮、列表、任务列表、代码块和引用显示是否异常
+4. 用中文输入法在不同结构中输入
+5. 验证 Enter / Tab / Backspace / Undo / Redo 没有明显回退
 
 后续会再把这里推进成正式测试入口，但第一阶段先把 fixture 固定下来。
