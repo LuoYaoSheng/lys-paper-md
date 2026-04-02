@@ -99,11 +99,32 @@ open PaperMD.xcodeproj
 
 然后在 Xcode 中构建并运行。
 
+如果本机签名证书还没配置好，也可以先用无签名构建验证工程是否可编译：
+
+```bash
+xcodebuild \
+  -project PaperMD.xcodeproj \
+  -scheme PaperMD \
+  -configuration Debug \
+  -derivedDataPath /tmp/PaperMDDerivedData \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  build
+```
+
 如果只想快速确认当前编辑器没有明显回退，可以用：
 
 - [Tests/SyntaxHighlightingTest.md](./Tests/SyntaxHighlightingTest.md)
+- [Tests/WritingSessionFixture.md](./Tests/WritingSessionFixture.md)
 
 这份样板文件覆盖了标题、列表、任务列表、代码块、引用、链接、图片和 HTML 标签等主要结构。
+
+本地 smoke 推荐顺序：
+
+1. 先跑上面的无签名构建
+2. 再打开 `Tests/SyntaxHighlightingTest.md`
+3. 再打开 `Tests/WritingSessionFixture.md`
+4. 用中文输入法验证输入、撤销、列表续行、Tab 缩进和保存
 
 ## 开发理念
 
