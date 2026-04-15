@@ -49,7 +49,7 @@ v1 可以这么定：
 7) 图片策略：落盘文件 + 相对路径
 结论：统一落盘到 xxx.assets/，写相对路径。（你 PRD 里已经写了，这里把技术实现也定死）
 实现要点：
-	•	粘贴/拖拽 -> 生成文件名（时间戳+hash）-> 写入 assets -> 插入 ![](xxx.assets/...)
+	•	粘贴/拖拽 -> 生成文件名（时间戳+hash）-> 写入 assets -> 插入 `![](xxx.assets/...)`
 	•	同时在编辑器里显示图片为“附件/inline image”（NSTextAttachment 或你自绘 attachment）
 
 8) 导出：HTML（自渲染）+ PDF（系统打印管线）
