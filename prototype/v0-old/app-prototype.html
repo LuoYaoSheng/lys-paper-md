@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PaperMD HTML 交互原型（逆向复刻 v1.0）</title>
+<style>
+/* ============ 全局 ============ */
+* { margin:0; padding:0; box-sizing:border-box; }
+:root{
+  --font-ui: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --accent:#2f6fd8;
+}
+body.theme-light{
+  --desk-bg: linear-gradient(160deg,#c8d8ea 0%,#a9bfd8 60%,#8fa8c5 100%);
+  --menubar-bg: rgba(250,250,252,.92); --menubar-fg:#222;
+  --win-bg:#ffffff; --win-fg:#1b1b1b; --titlebar-bg:linear-gradient(#f6f6f6,#ececec);
+  --toolbar-bg:#f6f6f6; --side-bg:#ebebeb; --side-fg:#333;
+  --editor-bg:#ffffff; --status-bg:#ececec; --status-fg:#666;
+  --hl-heading:#0366d6; --hl-code:#d63384; --hl-link:#0a66c2; --hl-image:#6f42c1;
+  --hl-marker:#d97706; --hl-quote:#0d9488; --hl-meta:#9aa0a6; --hl-hr:#c9c9c9;
+  --hl-html:#8b5a2b; --hl-task:#6b7280; --hl-imgline:rgba(111,66,193,.08);
+  --modal-bg:#f5f5f7; --field-bg:#fff; --field-br:#c9c9c9; --btn-bg:#fff; --btn-br:#b9b9b9;
+  --overlay:rgba(0,0,0,.28); --chip:#ffffff;
+}
+body.theme-dark{
+  --desk-bg: linear-gradient(160deg,#23283a 0%,#1a1f2e 60%,#141824 100%);
+  --menubar-bg: rgba(30,30,32,.92); --menubar-fg:#e8e8e8;
+  --win-bg:#1e1e1e; --win-fg:#e8e8e8; --titlebar-bg:linear-gradient(#3a3a3c,#2f2f31);
+  --toolbar-bg:#2b2b2d; --side-bg:#232325; --side-fg:#ddd;
+  --editor-bg:#1e1e1e; --status-bg:#232325; --status-fg:#999;
+  --hl-heading:#7db4ff; --hl-code:#f8a8d8; --hl-link:#7db4ff; --hl-image:#b78cf2;
+  --hl-marker:#f0a35e; --hl-quote:#6fd3c8; --hl-meta:#7c7c82; --hl-hr:#4a4a4a;
+  --hl-html:#c99a6b; --hl-task:#9a9aa2; --hl-imgline:rgba(183,140,242,.15);
+  --modal-bg:#2a2a2c; --field-bg:#1c1c1e; --field-br:#4a4a4c; --btn-bg:#3a3a3c; --btn-br:#5a5a5c;
+  --overlay:rgba(0,0,0,.5); --chip:#2a2a2c;
+}
+html,body{ height:100%; }
+body{ font-family:var(--font-ui); background:var(--desk-bg); overflow:hidden; color:var(--win-fg); }
+
+/* ============ 页面标注 ============ */
+.ptag{
+  position:absolute; z-index:60; font-size:10px; line-height:1; padding:3px 6px; border-radius:4px;
+  background:rgba(47,111,216,.85); color:#fff; font-weight:600; pointer-events:none;
+  box-shadow:0 1px 3px rgba(0,0,0,.25); white-space:nowrap;
+}
+body.hide-tags .ptag{ display:none; }
+
+/* ============ 布局骨架 ============ */
+#app{ display:flex; height:100vh; }
+/* —— 评审面板 —— */
+#review{
+  width:300px; min-width:300px; background:#16181d; color:#cfd6e4; overflow-y:auto;
+  font-size:12px; padding:14px; border-right:1px solid #000;
+}
+#review h1{ font-size:15px; color:#fff; margin-bottom:2px; }
+#review .sub{ color:#7b8494; margin-bottom:12px; }
+#review h2{ font-size:12px; color:#8fa3c4; margin:14px 0 6px; border-bottom:1px solid #2a2f3a; padding-bottom:4px; }
+#review button{
+  display:block; width:100%; text-align:left; margin:3px 0; padding:6px 8px; border-radius:6px;
+  background:#232733; color:#dbe3f0; border:1px solid #333947; cursor:pointer; font-size:12px;
+}
+#review button:hover{ background:#2d3342; }
+#review button.on{ background:#2f6fd8; border-color:#2f6fd8; color:#fff; }
+#review button small{ color:#8b94a6; float:right; }
+#review .note{ background:#20242e; border:1px solid #333947; border-radius:6px; padding:8px; color:#9aa4b5; line-height:1.6; }
+#review label.switch{ display:flex; align-items:center; gap:8px; margin:6px 0; cursor:pointer; }
+#review hr{ border:none; border-top:1px solid #2a2f3a; margin:12px 0; }
+
+/* —— 桌面区 —— */
+#desktop{ flex:1; display:flex; flex-direction:column; position:relative; min-width:0; }
+/* 菜单栏 PAGE002 */
+#menubar{
+  height:26px; background:var(--menubar-bg); color:var(--menubar-fg); display:flex; align-items:center;
+  padding:0 10px; font-size:13px; backdrop-filter:blur(20px); position:relative; z-index:100;
+  border-bottom:1px solid rgba(0,0,0,.12);
+}
+#menubar .apple{ margin-right:14px; font-size:14px; }
+#menubar .mtitle{ padding:2px 9px; border-radius:4px; cursor:default; position:relative; }
+#menubar .mtitle.open, #menubar .mtitle:hover{ background:rgba(120,120,130,.28); }
+#menubar .spacer{ flex:1; }
+#menubar .clock{ color:var(--menubar-fg); opacity:.85; }
+.dropdown{
+  position:absolute; top:27px; min-width:230px; background:var(--win-bg); color:var(--win-fg);
+  border-radius:6px; box-shadow:0 8px 28px rgba(0,0,0,.35); padding:4px; z-index:200;
+  border:1px solid rgba(0,0,0,.15); font-size:13px;
+}
+.dropdown .di{ display:flex; justify-content:space-between; align-items:center; padding:4px 10px; border-radius:4px; cursor:pointer; }
+.dropdown .di:hover{ background:var(--accent); color:#fff; }
+.dropdown .di .sc{ color:var(--hl-meta); font-size:12px; margin-left:24px; }
+.dropdown .di:hover .sc{ color:rgba(255,255,255,.8); }
+.dropdown .di.dis{ color:var(--hl-meta); pointer-events:none; }
+.dropdown .dsep{ height:1px; background:var(--hl-hr); margin:4px 8px; }
+.dropdown .dsub-mark::after{ content:"▸"; margin-left:18px; color:var(--hl-meta); }
+.subdrop{ position:absolute; left:100%; top:-5px; min-width:200px; background:var(--win-bg);
+  border-radius:6px; box-shadow:0 8px 28px rgba(0,0,0,.35); padding:4px; border:1px solid rgba(0,0,0,.15); }
+
+/* 主窗口 PAGE001 */
+#stage{ flex:1; display:flex; align-items:center; justify-content:center; position:relative; padding:18px 26px 30px; }
+#macwin{
+  width:min(1060px,100%); height:min(96%,100%); background:var(--win-bg); border-radius:10px;
+  box-shadow:0 22px 70px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.25); display:flex; flex-direction:column;
+  overflow:hidden; position:relative; transition:width .25s ease,height .25s ease,transform .3s ease,opacity .3s;
+}
+#macwin.zoomed{ width:100%; height:100%; }
+#macwin.minimized{ transform:scale(.06) translateY(60vh); opacity:0; pointer-events:none; }
+#macwin.closed{ display:none; }
+#titlebar{
+  height:38px; background:var(--titlebar-bg); display:flex; align-items:center; padding:0 12px; gap:10px;
+  border-bottom:1px solid rgba(0,0,0,.1); position:relative; flex-shrink:0;
+}
+.lights{ display:flex; gap:8px; }
+.light{ width:12px; height:12px; border-radius:50%; cursor:pointer; box-shadow:inset 0 0 0 .5px rgba(0,0,0,.15); }
+.light.close{ background:#ff5f57; } .light.min{ background:#febc2e; } .light.zoom{ background:#28c840; }
+#doctitle{ flex:1; text-align:center; font-size:13px; font-weight:600; color:var(--win-fg); }
+#doctitle .edited{ color:var(--hl-marker); font-size:15px; vertical-align:1px; margin-right:4px; }
+
+/* 工具栏 PAGE006 */
+#toolbar{
+  height:44px; background:var(--toolbar-bg); display:flex; align-items:center; padding:0 12px; gap:6px;
+  border-bottom:1px solid rgba(0,0,0,.1); flex-shrink:0; position:relative;
+}
+.tbtn{
+  width:34px; height:28px; border-radius:6px; border:1px solid transparent; background:transparent; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; color:var(--win-fg); position:relative;
+}
+.tbtn:hover:not(:disabled){ background:rgba(120,120,130,.22); }
+.tbtn:disabled{ opacity:.32; cursor:default; }
+.tbtn svg{ width:17px; height:17px; }
+.tsep{ width:1px; height:20px; background:var(--hl-hr); margin:0 4px; }
+.tflex{ flex:1; }
+
+/* 主体分栏 */
+#bodyrow{ flex:1; display:flex; min-height:0; position:relative; }
+#sidebar{
+  width:200px; min-width:0; background:var(--side-bg); border-right:1px solid rgba(0,0,0,.12);
+  display:flex; flex-direction:column; overflow:hidden; transition:width .25s ease; position:relative; flex-shrink:0;
+}
+#sidebar.collapsed{ width:0; border-right:none; }
+#sidebar header{ padding:8px 12px 4px; font-size:11px; font-weight:700; color:var(--hl-meta); text-transform:uppercase; letter-spacing:.4px; }
+#outline{ flex:1; overflow-y:auto; padding:4px 6px; }
+.ol-item{ padding:5px 8px; border-radius:5px; cursor:pointer; font-size:12.5px; color:var(--side-fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ol-item:hover{ background:rgba(120,120,130,.18); }
+.ol-item.l1{ font-weight:700; font-size:13.5px; }
+.ol-item.l2{ font-weight:700; }
+.ol-empty{ color:var(--hl-meta); font-size:12px; padding:10px 12px; }
+
+/* 编辑区 PAGE004 */
+#editorwrap{ flex:1; position:relative; min-width:0; background:var(--editor-bg); }
+#editorstack{ position:absolute; inset:0; }
+#hl, #ed{
+  position:absolute; inset:0; padding:18px 26px; font-family:var(--font-mono);
+  font-size:var(--edfs,15px); line-height:1.62; white-space:pre; tab-size:4;
+}
+#hl{ overflow:hidden; pointer-events:none; z-index:1; color:var(--win-fg); }
+#ed{
+  z-index:2; background:transparent; color:transparent; caret-color:var(--accent);
+  border:none; outline:none; resize:none; overflow:auto; -webkit-text-fill-color:transparent;
+}
+#ed::selection{ background:rgba(47,111,216,.30); }
+#imebar{
+  position:absolute; left:26px; z-index:3; background:var(--accent); color:#fff; font-size:12px;
+  font-family:var(--font-ui); padding:2px 8px; border-radius:4px 4px 0 0; display:none; pointer-events:none;
+}
+/* 高亮 token */
+.tk-h1{ color:var(--hl-heading); font-weight:700; font-size:1.5em; }
+.tk-h2{ color:var(--hl-heading); font-weight:700; font-size:1.3em; }
+.tk-h3{ color:var(--hl-heading); font-weight:700; font-size:1.12em; }
+.tk-h46{ color:var(--hl-heading); font-weight:700; }
+.tk-setext{ color:var(--hl-heading); font-weight:700; }
+.tk-meta{ color:var(--hl-meta); }
+.tk-code{ color:var(--hl-code); }
+.tk-mono{ font-family:var(--font-mono); color:var(--hl-code); }
+.tk-link{ color:var(--hl-link); text-decoration:underline; }
+.tk-image{ color:var(--hl-image); }
+.tk-marker{ color:var(--hl-marker); }
+.tk-quote{ color:var(--hl-quote); }
+.tk-hr{ color:var(--hl-hr); }
+.tk-html{ color:var(--hl-html); }
+.tk-task{ color:var(--hl-task); }
+.tk-taskdone{ color:#2e9e5b; }
+.tk-bold{ font-weight:700; }
+.tk-italic{ font-style:italic; }
+.tk-del{ text-decoration:line-through; }
+.tk-imgline{ background:var(--hl-imgline); display:inline-block; width:100%; }
+.tk-fence{ color:var(--hl-meta); font-family:var(--font-mono); }
+.tk-cblock{ font-family:var(--font-mono); }
+
+/* 状态栏 PAGE005 */
+#statusbar{
+  height:28px; background:var(--status-bg); color:var(--status-fg); display:flex; align-items:center;
+  justify-content:center; gap:20px; font-size:11px; flex-shrink:0; border-top:1px solid rgba(0,0,0,.1); position:relative;
+}
+#statusbar .vsep{ width:1px; height:12px; background:var(--hl-hr); }
+
+/* 专注模式 PAGE007 */
+#macwin.focus #sidebar{ width:0 !important; border:none; }
+#macwin.focus #statusbar, #macwin.focus #toolbar{ display:none; }
+
+/* 加载遮罩 */
+#loading{ position:absolute; inset:0; z-index:80; background:var(--editor-bg); display:none;
+  flex-direction:column; align-items:center; justify-content:center; gap:14px; color:var(--hl-meta); font-size:13px; }
+.spinner{ width:30px; height:30px; border:3px solid var(--hl-hr); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg);} }
+
+/* ============ 模态 / 对话框 ============ */
+#overlay{ position:absolute; inset:0; z-index:300; background:var(--overlay); display:none; }
+#overlay.show{ display:block; }
+.mac-modal{
+  position:absolute; z-index:310; background:var(--modal-bg); border-radius:12px; min-width:380px; max-width:640px;
+  box-shadow:0 18px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.2); display:none; overflow:hidden;
+}
+.mac-modal.show{ display:block; }
+.mm-title{ height:34px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;
+  background:linear-gradient(#fbfbfd,#eff0f2); border-bottom:1px solid rgba(0,0,0,.12); position:relative; }
+body.theme-dark .mm-title{ background:linear-gradient(#3c3c3e,#303032); }
+.mm-body{ padding:18px 20px; font-size:13px; }
+.mm-foot{ display:flex; justify-content:flex-end; gap:8px; padding:12px 16px; border-top:1px solid rgba(0,0,0,.08); }
+.btn{
+  padding:5px 16px; border-radius:6px; border:1px solid var(--btn-br); background:var(--btn-bg); color:var(--win-fg);
+  font-size:13px; cursor:pointer;
+}
+.btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn.danger{ background:#e0483d; border-color:#e0483d; color:#fff; }
+.btn:hover{ filter:brightness(1.06); }
+.field-row{ display:flex; align-items:center; gap:10px; margin:10px 0; }
+.field-row label{ width:120px; text-align:right; color:var(--status-fg); }
+.field-row input[type=text], .field-row select{
+  flex:1; padding:5px 8px; border-radius:6px; border:1px solid var(--field-br); background:var(--field-bg); color:var(--win-fg); font-size:13px;
+}
+.filelist{ max-height:220px; overflow-y:auto; border:1px solid var(--field-br); border-radius:8px; background:var(--field-bg); }
+.fileitem{ display:flex; align-items:center; gap:10px; padding:8px 12px; cursor:pointer; border-bottom:1px solid rgba(0,0,0,.06); }
+.fileitem:hover{ background:rgba(47,111,216,.12); }
+.fileitem.sel{ background:rgba(47,111,216,.22); }
+.fileitem .fic{ width:22px; text-align:center; }
+.fileitem small{ color:var(--status-fg); margin-left:auto; }
+.mm-note{ font-size:11.5px; color:var(--status-fg); margin-top:10px; line-height:1.6; }
+.progress{ height:6px; border-radius:3px; background:var(--hl-hr); overflow:hidden; margin:12px 0; }
+.progress > div{ height:100%; width:0; background:var(--accent); transition:width .3s; }
+#htmlpreview{ width:640px; }
+#htmlcode{ width:100%; height:260px; font-family:var(--font-mono); font-size:11.5px; border-radius:8px;
+  border:1px solid var(--field-br); background:var(--field-bg); color:var(--win-fg); padding:10px; white-space:pre; overflow:auto; }
+
+/* 关于 */
+.aboutbox{ text-align:center; padding:10px 30px; }
+.aboutbox .logo{ font-size:44px; }
+.aboutbox h3{ margin:8px 0 2px; font-size:17px; }
+.aboutbox .ver{ color:var(--status-fg); font-size:12px; }
+
+/* Dock 重开 chip */
+#reopenchip{
+  position:absolute; bottom:26px; left:50%; transform:translateX(-50%); z-index:50; display:none;
+  background:var(--chip); color:var(--win-fg); border-radius:22px; padding:10px 20px; box-shadow:0 10px 30px rgba(0,0,0,.35);
+  font-size:13px; align-items:center; gap:12px;
+}
+#reopenchip.show{ display:flex; }
+
+/* Toast */
+#toasts{ position:absolute; right:18px; bottom:18px; z-index:400; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+.toast{
+  background:rgba(28,30,36,.94); color:#fff; font-size:12.5px; padding:9px 14px; border-radius:8px; max-width:420px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4); display:flex; gap:8px; align-items:flex-start; animation:tin .25s ease;
+}
+.toast.err{ background:rgba(180,50,40,.95); }
+.toast.ok{ background:rgba(34,120,60,.94); }
+@keyframes tin{ from{ transform:translateY(8px); opacity:0;} }
+</style>
+</head>
+<body class="theme-light">
+<div id="app">
+
+  <!-- ================= 评审面板 ================= -->
+  <aside id="review">
+    <h1>PaperMD 原型评审台</h1>
+    <div class="sub">逆向复刻 v1.0 · 14 页面 / 60 功能 / 五态全覆盖</div>
+
+    <h2>页面导航（PAGE ↔ PRD）</h2>
+    <div id="pageNav"></div>
+
+    <h2>场景库（五态）</h2>
+    <button data-scene="success">✅ 成功态 · 标准样例文档</button>
+    <button data-scene="empty">📄 空数据态 · 新建空白文档</button>
+    <button data-scene="loading">⏳ 加载态 · 打开大文档</button>
+    <button data-scene="broken">❌ 失败态 · 打开破损文件</button>
+    <button data-scene="readonly">⚠️ 异常态 · 磁盘只读（保存失败）</button>
+    <button data-scene="normal">↩️ 恢复正常磁盘</button>
+
+    <h2>专项演示</h2>
+    <label class="switch"><input type="checkbox" id="imeSwitch"> 中文 IME 演示（组合期禁重排 F047）</label>
+    <label class="switch"><input type="checkbox" id="tagSwitch" checked> 显示页面/PRD 标注</label>
+    <button id="btnSimPasteImg">🖼 模拟粘贴图片（F014-F018）</button>
+    <button id="btnFindPanel">🔍 打开查找替换（F019）</button>
+    <button id="btnPrefs">⚙️ 打开偏好设置（F049）</button>
+
+    <h2>旧版已知局限（如实呈现）</h2>
+    <div class="note">
+      · Replace All 不入撤销栈（F022）<br>
+      · ⌘G/⇧⌘G/⌥⌘F 未联动自研面板（F024 部分实现）<br>
+      · GFM 表格仅导出支持，编辑器不高亮（F042）<br>
+      · H4-H6 无格式化入口（F060）<br>
+      · togglePreview 为空壳无 UI（F059 未实现）<br>
+      · 导出/写图失败旧版静默（本原型可视化提示）<br>
+      · 空文档阅读时间显示 1 min read（旧版事实）
+    </div>
+    <hr>
+    <div class="note">原型 = 单文件零外部资源；模拟数据不依赖后端。快捷键：⌘N/⌘S/⌘F/⌘B/⌘I/⌘K/⌘Z/⇧⌘Z/⌃⌘O/⌃⌘F 等均有效（在编辑区内使用）。</div>
+  </aside>
+
+  <!-- ================= macOS 桌面 ================= -->
+  <div id="desktop">
+    <!-- 菜单栏 PAGE002 -->
+    <nav id="menubar">
+      <span class="apple"></span>
+      <span class="mtitle" data-menu="app">PaperMD</span>
+      <span class="mtitle" data-menu="file">File</span>
+      <span class="mtitle" data-menu="edit">Edit</span>
+      <span class="mtitle" data-menu="view">View</span>
+      <span class="mtitle" data-menu="format">Format</span>
+      <span class="mtitle" data-menu="window">Window</span>
+      <span class="mtitle" data-menu="help">Help</span>
+      <span class="spacer"></span>
+      <span class="clock" id="clock"></span>
+      <span class="ptag" style="position:fixed; top:29px; left:calc(300px + 120px);">PAGE002 · PRD §6.PAGE002 · F004/F009/F010/F019/F024-F027</span>
+    </nav>
+
+    <div id="stage">
+      <!-- ============ 主窗口 PAGE001 ============ -->
+      <div id="macwin">
+        <span class="ptag" style="top:44px; right:12px;">PAGE001 · PRD §6.PAGE001 · F001/F002/F005</span>
+        <div id="titlebar">
+          <div class="lights">
+            <div class="light close" id="btnCloseWin" title="关闭 ⌘W"></div>
+            <div class="light min" id="btnMinWin" title="最小化 ⌘M"></div>
+            <div class="light zoom" id="btnZoomWin" title="缩放"></div>
+          </div>
+          <div id="doctitle"><span class="edited" id="editedDot" style="display:none">●</span><span id="docname">Untitled</span></div>
+        </div>
+
+        <!-- 工具栏 PAGE006 -->
+        <div id="toolbar">
+          <span class="ptag" style="top:-6px; left:12px;">PAGE006 · PRD §6.PAGE006 · F028/F032-F038/F057/F058</span>
+          <button class="tbtn" id="tbSidebar" title="Toggle Outline Sidebar (⌃⌘O) — F028">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="16" height="14" rx="2"/><line x1="7" y1="3" x2="7" y2="17"/></svg>
+          </button>
+          <div class="tsep"></div><div class="tflex"></div>
+          <button class="tbtn fmtbtn" data-fmt="bold" title="Bold (⌘B) — F032">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M5 3h6a4 4 0 0 1 0 8H5V3zm0 8h7a4 4 0 0 1 0 8H5v-8z"/></svg>
+          </button>
+          <button class="tbtn fmtbtn" data-fmt="italic" title="Italic (⌘I) — F033">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="6" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="8" y2="16"/><line x1="6" y1="16" x2="14" y2="16"/></svg>
+          </button>
+          <button class="tbtn fmtbtn" data-fmt="code" title="Inline Code (⌘K) — F034">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg>
+          </button>
+          <button class="tbtn" id="tbHeading" title="Heading 1 (⇧⌘1) — F036">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 16V4h2v5h6V4h2v12h-2v-5H6v5H4z"/></svg>
+          </button>
+          <button class="tbtn" id="tbQuote" title="Blockquote (⌥⌘&gt;) — F037">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 5v6h4c0 2-1 3-3 3v2c4 0 6-2 6-6V5H4zm9 0v6h4c0 2-1 3-3 3v2c4 0 6-2 6-6V5h-7z"/></svg>
+          </button>
+          <button class="tbtn" id="tbCodeBlock" title="Code Block (⌥⌘C) — F038">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4h9M5 10h11M4 16h9"/></svg>
+          </button>
+        </div>
+
+        <div id="bodyrow">
+          <!-- 大纲 PAGE003 -->
+          <div id="sidebar">
+            <span class="ptag" style="top:4px; left:8px;">PAGE003 · PRD §6.PAGE003 · F030</span>
+            <header>大纲 Outline</header>
+            <div id="outline"></div>
+          </div>
+          <!-- 编辑区 PAGE004 -->
+          <div id="editorwrap">
+            <span class="ptag" style="top:4px; right:12px;">PAGE004 · PRD §6.PAGE004 · F013-F018/F032-F048</span>
+            <div id="editorstack">
+              <pre id="hl" aria-hidden="true"></pre>
+              <textarea id="ed" spellcheck="false" autocomplete="off" aria-label="Markdown Editor"></textarea>
+              <div id="imebar">拼音组合中…（IME 保护：不重建高亮 F047）</div>
+            </div>
+            <div id="loading"><div class="spinner"></div><div id="loadingText">正在打开 large-document.md …</div></div>
+          </div>
+        </div>
+
+        <!-- 状态栏 PAGE005 -->
+        <div id="statusbar">
+          <span class="ptag" style="top:-4px; left:50%; transform:translateX(-50%);">PAGE005 · PRD §6.PAGE005 · F031</span>
+          <span id="stWords">0 words</span><span class="vsep"></span>
+          <span id="stChars">0 characters</span><span class="vsep"></span>
+          <span id="stRead">1 min read</span>
+        </div>
+      </div>
+
+      <!-- 关窗后的 Dock 重开提示 -->
+      <div id="reopenchip">
+        <span>🗒 PaperMD 仍在运行（关闭最后窗口不退出 — F005）</span>
+        <button class="btn primary" id="btnReopen">点按“Dock 图标”重开窗口</button>
+      </div>
+    </div>
+
+    <!-- ============ 模态层 ============ -->
+    <div id="overlay"></div>
+
+    <!-- PAGE008 偏好设置 -->
+    <div class="mac-modal" id="mPrefs" style="width:450px; left:calc(50% - 225px); top:120px;">
+      <span class="ptag" style="top:-10px; right:10px;">PAGE008 · PRD §6.PAGE008 · F008/F049-F052</span>
+      <div class="mm-title">Preferences</div>
+      <div class="mm-body">
+        <div class="field-row"><label>Font size:</label>
+          <select id="prefFont">
+            <option value="12">12 pt</option><option value="13">13 pt</option><option value="14">14 pt</option>
+            <option value="15">15 pt</option><option value="16" selected>16 pt</option><option value="17">17 pt</option>
+            <option value="18">18 pt</option><option value="20">20 pt</option><option value="22">22 pt</option><option value="24">24 pt</option>
+          </select>
+        </div>
+        <div class="field-row"><label>Theme:</label>
+          <select id="prefTheme"><option value="light">Light</option><option value="dark">Dark</option><option value="system" selected>System</option></select>
+        </div>
+        <div class="field-row"><label>General:</label>
+          <label style="width:auto; text-align:left;"><input type="checkbox" id="prefAutosave" checked> Automatically save documents</label>
+        </div>
+        <div class="mm-note">修改即时生效（写 UserDefaults → 广播 preferencesChanged → 全文重排版且光标保持 — F052）。</div>
+      </div>
+      <div class="mm-foot"><button class="btn" data-close="mPrefs">关闭</button></div>
+    </div>
+
+    <!-- PAGE009 查找替换 -->
+    <div class="mac-modal" id="mFind" style="width:420px; left:calc(50% - 210px); top:150px;">
+      <span class="ptag" style="top:-10px; right:10px;">PAGE009 · PRD §6.PAGE009 · F019-F023</span>
+      <div class="mm-title">Find and Replace</div>
+      <div class="mm-body">
+        <div class="field-row"><label>Find:</label><input type="text" id="findQ" placeholder="搜索…"></div>
+        <div class="field-row"><label>Replace:</label><input type="text" id="findR" placeholder="替换为…"></div>
+        <div class="field-row"><label></label><label style="width:auto; text-align:left;"><input type="checkbox" id="findRegex"> Use Regular Expression</label></div>
+      </div>
+      <div class="mm-foot">
+        <button class="btn" data-close="mFind">关闭</button>
+        <button class="btn" id="btnFindNext">Find Next</button>
+        <button class="btn" id="btnReplaceOne">Replace</button>
+        <button class="btn primary" id="btnReplaceAll">Replace All</button>
+      </div>
+    </div>
+
+    <!-- PAGE010 打开面板 -->
+    <div class="mac-modal" id="mOpen" style="width:480px; left:calc(50% - 240px); top:90px;">
+      <span class="ptag" style="top:-10px; right:10px;">PAGE010 · PRD §6.PAGE010 · F003/F004</span>
+      <div class="mm-title">Open</div>
+      <div class="mm-body">
+        <div class="filelist" id="openList"></div>
+        <div class="mm-note">沙盒模型：仅用户选择文件可读写（entitlements）。最近文档（F004）动态进入 File ▸ Open Recent。</div>
+      </div>
+      <div class="mm-foot"><button class="btn" data-close="mOpen">取消</button><button class="btn primary" id="btnDoOpen">打开</button></div>
+    </div>
+
+    <!-- PAGE011 保存面板 -->
+    <div class="mac-modal" id="mSave" style="width:440px; left:calc(50% - 220px); top:140px;">
+      <span class="ptag" id="saveTag" style="top:-10px; right:10px;">PAGE011 · PRD §6.PAGE011 · F006/F007</span>
+      <div class="mm-title" id="saveTitle">Save</div>
+      <div class="mm-body">
+        <div class="field-row"><label>存储为：</label><input type="text" id="saveName" value="untitled.md"></div>
+        <div class="mm-note">旧版逻辑：displayName 无 .md 后缀自动补全（prepareSavePanel）；内容 = textView.string 源文本。</div>
+      </div>
+      <div class="mm-foot"><button class="btn" data-close="mSave">取消</button><button class="btn primary" id="btnDoSave">存储</button></div>
+    </div>
+
+    <!-- PAGE012 导出 HTML -->
+    <div class="mac-modal" id="mExportHtml" style="width:440px; left:calc(50% - 220px); top:140px;">
+      <span class="ptag" style="top:-10px; right:10px;">PAGE012 · PRD §6.PAGE012 · F009</span>
+      <div class="mm-title">Export to HTML</div>
+      <div class="mm-body">
+        <div class="field-row"><label>导出为：</label><input type="text" id="expHtmlName" value="document.html"></div>
+        <div class="mm-note">统一 MarkdownParser + 当前主题 CSS（F050 联动）。写失败旧版仅 DebugLog——本原型给出可视化提示（失败态可演示）。</div>
+      </div>
+      <div class="mm-foot"><button class="btn" data-close="mExportHtml">取消</button><button class="btn primary" id="btnDoExpHtml">导出</button></div>
+    </div>
+    <div class="mac-modal" id="htmlpreview" style="width:680px; left:calc(50% - 340px); top:70px;">
+      <div class="mm-title">HTML 导出预览（exported .html）</div>
+      <div class="mm-body"><textarea id="htmlcode" readonly></textarea></div>
+      <div class="mm-foot"><button class="btn primary" data-close="htmlpreview">完成</button></div>
+    </div>
+
+    <!-- PAGE013 导出 PDF -->
+    <div class="mac-modal" id="mExportPdf" style="width:440px; left:calc(50% - 220px); top:150px;">
+      <span class="ptag" style="top:-10px; right:10px;">PAGE013 · PRD §6.PAGE013 · F010</span>
+      <div class="mm-title">打印（存储为 PDF）</div>
+      <div class="mm-body">
+        <div>纸张：US Letter 612×792 · 横向 Fit · 纵向自动分页<br>渲染引擎：WKWebView ← 导出 HTML</div>
+        <div class="progress"><div id="pdfBar"></div></div>
+        <div id="pdfStatus" style="color:var(--status-fg)">等待打印…</div>
+        <div class="mm-note">旧版事实：无 PDF 目录功能（docs 宣称与实现矛盾，以代码为准）。</div>
+      </div>
+      <div class="mm-foot"><button class="btn" data-close="mExportPdf" id="btnCancelPdf">取消</button><button class="btn primary" id="btnDoExpPdf">打印</button></div>
+    </div>
+
+    <!-- PAGE014 关于 -->
+    <div class="mac-modal" id="mAbout" style="width:340px; left:calc(50% - 170px); top:170px;">
+      <span class="ptag" style="top:-10px; right:10px;">PAGE014 · PRD §6.PAGE014 · F054</span>
+      <div class="mm-title">About PaperMD</div>
+      <div class="mm-body"><div class="aboutbox">
+        <div class="logo">🗒</div><h3>PaperMD</h3>
+        <div class="ver">版本 1.0（1）· 原生 macOS Markdown 语法高亮编辑器</div>
+        <div class="ver" style="margin-top:6px">MIT License · lys IoT DevTools</div>
+      </div></div>
+      <div class="mm-foot"><button class="btn primary" data-close="mAbout">好</button></div>
+    </div>
+
+    <!-- 关闭确认（未保存询问） -->
+    <div class="mac-modal" id="mCloseAsk" style="width:380px; left:calc(50% - 190px); top:180px;">
+      <span class="ptag" style="top:-10px; right:10px;">PAGE001 异常 · 用户取消/保存询问</span>
+      <div class="mm-title">关闭前确认</div>
+      <div class="mm-body">文档“<b id="askDoc">Untitled</b>”有未保存的更改。关闭前要存储吗？</div>
+      <div class="mm-foot">
+        <button class="btn" id="askCancel">取消</button>
+        <button class="btn danger" id="askNo">不存储</button>
+        <button class="btn primary" id="askYes">存储…</button>
+      </div>
+    </div>
+
+    <!-- 系统错误对话框（异常态） -->
+    <div class="mac-modal" id="mError" style="width:380px; left:calc(50% - 190px); top:190px;">
+      <div class="mm-title">错误</div>
+      <div class="mm-body"><div style="display:flex; gap:12px; align-items:flex-start;">
+        <span style="font-size:28px">⛔</span><div id="errText">操作失败。</div>
+      </div></div>
+      <div class="mm-foot"><button class="btn primary" data-close="mError">好</button></div>
+    </div>
+
+    <div id="toasts"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   PaperMD HTML 原型引擎（逆向复刻）
+   事实源：docs/01_reverse/REVERSE_ANALYSIS.md · docs/02_product/PRD.md · docs/02_product/PAGE_SPEC.md
+   ===================================================================== */
+
+/* ---------- 样例文档（同构 Tests/SyntaxHighlightingTest.md） ---------- */
+var SAMPLE = [
+"# PaperMD 语法高亮测试文档",
+"",
+"## ATX 风格标题 (H1-H6)",
+"",
+"### 三级标题",
+"",
+"#### 四级标题",
+"",
+"##### 五级标题",
+"",
+"###### 六级标题",
+"",
+"---",
+"",
+"## Setext 风格标题",
+"",
+"这是一级标题 (用 === 下划线)",
+"===",
+"",
+"这是二级标题 (用 --- 下划线)",
+"---",
+"",
+"## 文本格式化",
+"",
+"这是 **粗体文本** 使用双星号",
+"",
+"这是 __粗体文本__ 使用双下划线",
+"",
+"这是 *斜体文本* 使用单星号",
+"",
+"这是 ~~删除线~~ 文本",
+"",
+"这是 `行内代码` 示例",
+"",
+"这是 **粗体和 `代码` 混合** 的例子",
+"",
+"## 链接和图片",
+"",
+"这是一个 [链接到指南](https://www.markdownguide.org) 的例子",
+"",
+"![这是一张示例图片](PaperMD.assets/image-demo.png)",
+"",
+"## 列表",
+"",
+"### 无序列表",
+"",
+"- 第一项",
+"- 第二项",
+"  - 嵌套项 A",
+"  - 嵌套项 B",
+"* 使用星号的列表",
+"+ 使用加号的列表",
+"",
+"### 有序列表",
+"",
+"1. 第一项",
+"2. 第二项",
+"3. 第三项",
+"",
+"### 任务列表",
+"",
+"- [ ] 未完成的任务",
+"- [x] 已完成的任务",
+"",
+"## 代码块",
+"",
+"```swift",
+"func helloWorld() {",
+"    print(\"Hello, PaperMD!\")",
+"    let greeting = \"欢迎使用 PaperMD\"",
+"    return greeting",
+"}",
+"```",
+"",
+"## 引用块",
+"",
+"> 这是一段引用文本",
+"> 可以有多行",
+"",
+">> 嵌套引用的第二层",
+"",
+"> 引用中也可以有 **格式化** 和 `代码`",
+"",
+"## 水平分割线与 HTML",
+"",
+"***",
+"",
+"<div class=\"container\">",
+"    <p>这是一段 <strong>HTML</strong> 内容</p>",
+"</div>",
+"",
+"## 表格（GFM · 仅导出支持 F042）",
+"",
+"| 列一 | 列二 |",
+"| --- | --- |",
+"| A | B |",
+"",
+"> 记得：**写作是思考的整理**"
+].join("\n");
+
+var WELCOME = "# Hello PaperMD\n\nStart typing your Markdown here...";
+
+var MOCK_FILES = [
+  { name: "SyntaxHighlightingTest.md", size: "4.2 KB", kind: "md", broken: false, big: false },
+  { name: "WritingSessionFixture.md", size: "1.1 KB", kind: "md", broken: false, big: false },
+  { name: "weekly-notes-长文.md", size: "38.6 KB", kind: "md", broken: false, big: false },
+  { name: "large-document.md", size: "2.4 MB", kind: "md", broken: false, big: true },
+  { name: "破损文件-encoding.md", size: "12 B", kind: "broken", broken: true, big: false }
+];
+
+/* ---------- 全局状态 ---------- */
+var S = {
+  text: SAMPLE, fileName: "SyntaxHighlightingTest.md", savedName: "SyntaxHighlightingTest.md",
+  edited: false, theme: "system", fontSize: 16, autosave: true,
+  focusMode: false, sidebarOn: true, imeDemo: false, diskReadonly: false,
+  recent: ["SyntaxHighlightingTest.md", "WritingSessionFixture.md"],
+  docCounter: 1, pendingAssets: [], savedOnce: true, openSel: null, winClosed: false
+};
+var undoStack = [], redoStack = [], lastPushAt = 0;
+var autosaveTimer = null;
+
+/* ---------- DOM ---------- */
+function $(id){ return document.getElementById(id); }
+var ed = $("ed"), hl = $("hl");
+
+/* ---------- Toast ---------- */
+function toast(msg, type, ms){
+  var t = document.createElement("div");
+  t.className = "toast" + (type ? " " + type : "");
+  t.textContent = msg;
+  $("toasts").appendChild(t);
+  setTimeout(function(){ t.style.opacity = "0"; t.style.transition = "opacity .3s"; }, ms || 2600);
+  setTimeout(function(){ if (t.parentNode) t.parentNode.removeChild(t); }, (ms || 2600) + 350);
+}
+
+/* ---------- Undo（F011，含图片撤销组 F018） ---------- */
+function pushUndo(kind){
+  var now = Date.now();
+  if (kind === "type" && now - lastPushAt < 900 && undoStack.length) {
+    lastPushAt = now; return; // 打字合并
+  }
+  undoStack.push({ text: S.text, sel: [ed.selectionStart, ed.selectionEnd], pending: S.pendingAssets.slice() });
+  if (undoStack.length > 120) undoStack.shift();
+  redoStack = []; lastPushAt = now;
+}
+function doUndo(){
+  if (!undoStack.length) { toast("没有可撤销的操作"); return; }
+  redoStack.push({ text: S.text, sel: [ed.selectionStart, ed.selectionEnd], pending: S.pendingAssets.slice() });
+  var st = undoStack.pop();
+  setText(st.text, st.sel[0], st.sel[1]);
+  S.pendingAssets = st.pending;
+  toast("已撤销（旧版 NSUndoManager）");
+}
+function doRedo(){
+  if (!redoStack.length) { toast("没有可重做的操作"); return; }
+  undoStack.push({ text: S.text, sel: [ed.selectionStart, ed.selectionEnd], pending: S.pendingAssets.slice() });
+  var st = redoStack.pop();
+  setText(st.text, st.sel[0], st.sel[1]);
+  S.pendingAssets = st.pending;
+  toast("已重做");
+}
+
+/* ---------- 文本设置与光标保持（F048） ---------- */
+function setText(txt, selStart, selEnd){
+  S.text = txt; ed.value = txt;
+  renderAll();
+  ed.setSelectionRange(selStart != null ? selStart : ed.selectionStart, selEnd != null ? selEnd : ed.selectionStart);
+}
+
+/* ---------- 高亮引擎（F040 简化复刻：行级） ---------- */
+function esc(s){
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function inlineFmt(escaped){
+  var s = escaped;
+  s = s.replace(/`([^`]+)`/g, function(m, c){ return '<span class="tk-meta">`</span><span class="tk-code">' + c + '</span><span class="tk-meta">`</span>'; });
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<span class="tk-meta">**</span><span class="tk-bold">$1</span><span class="tk-meta">**</span>');
+  s = s.replace(/__([^_]+)__/g, '<span class="tk-meta">__</span><span class="tk-bold">$1</span><span class="tk-meta">__</span>');
+  s = s.replace(/\*([^*\n]+)\*/g, '<span class="tk-meta">*</span><span class="tk-italic">$1</span><span class="tk-meta">*</span>');
+  s = s.replace(/~~(.+?)~~/g, '<span class="tk-meta">~~</span><span class="tk-del">$1</span><span class="tk-meta">~~</span>');
+  s = s.replace(/(!\[)([^\]]*)(\]\()([^)]+)(\))/g, '<span class="tk-meta">$1</span><span class="tk-image">$2</span><span class="tk-meta">$3</span>$4<span class="tk-meta">$5</span>');
+  s = s.replace(/(\[)([^\]]+)(\]\()([^)]+)(\))/g, '<span class="tk-meta">$1</span><span class="tk-link">$2</span><span class="tk-meta">$3</span>$4<span class="tk-meta">$5</span>');
+  s = s.replace(/&lt;([a-zA-Z][a-zA-Z0-9]*)((\s[^&]*)?)&gt;/g, '<span class="tk-html">&lt;$1$2&gt;</span>');
+  return s;
+}
+function lineClassFor(line, inCode){
+  var t = line.trim();
+  if (/^#{1}\s/.test(t)) return "h1";
+  if (/^#{2}\s/.test(t)) return "h2";
+  if (/^#{3}\s/.test(t)) return "h3";
+  if (/^#{4,6}\s/.test(t)) return "h46";
+  return null;
+}
+function renderHighlight(){
+  var lines = S.text.split("\n");
+  var out = [], inCode = false, i;
+  for (i = 0; i < lines.length; i++) {
+    var raw = lines[i];
+    var t = raw.trim();
+    var e = esc(raw);
+    if (/^(```|~~~)/.test(t)) {
+      inCode = !inCode;
+      out.push('<span class="tk-fence">' + e + "</span>");
+      continue;
+    }
+    if (inCode) { out.push('<span class="tk-cblock">' + e + "</span>"); continue; }
+    var lc = lineClassFor(raw);
+    if (lc === "h1" || lc === "h2" || lc === "h3" || lc === "h46") {
+      out.push('<span class="tk-' + lc + '">' + e + "</span>"); continue;
+    }
+    if (/^(===+|---+)\s*$/.test(t) && i > 0 && lines[i-1].trim() !== "") {
+      out.push('<span class="tk-meta">' + e + "</span>"); continue;
+    }
+    if (i + 1 < lines.length && /^===+\s*$/.test(lines[i+1].trim()) && t !== "") {
+      out.push('<span class="tk-setext">' + e + "</span>"); continue;
+    }
+    if (i + 1 < lines.length && /^---+\s*$/.test(lines[i+1].trim()) && t !== "") {
+      out.push('<span class="tk-setext">' + e + "</span>"); continue;
+    }
+    if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(t)) {
+      out.push('<span class="tk-hr">' + e + "</span>"); continue;
+    }
+    if (/^!\[[^\]]*\]\([^)]+\)\s*$/.test(t)) {
+      out.push('<span class="tk-imgline">' + inlineFmt(e) + "</span>"); continue;
+    }
+    if (t.indexOf(">") === 0) {
+      out.push(inlineFmt(e).replace(/^(\s*&gt;)+/, function(m){ return '<span class="tk-quote">' + m + "</span>"; }));
+      continue;
+    }
+    var mList = raw.match(/^(\s*)(-\s\[[xX ]\]|[-*+]\s|\d+\.\s)/);
+    if (mList) {
+      var marker = mList[2];
+      var cls = /^-\s\[[xX]\]/.test(marker) ? "tk-taskdone" : (/^-\s\[\s\]/.test(marker) ? "tk-task" : (/^\d+\./.test(marker) ? "tk-meta" : "tk-marker"));
+      out.push('<span class="' + cls + '">' + esc(mList[1]) + esc(marker) + "</span>" + inlineFmt(esc(raw.slice(mList[0].length))));
+      continue;
+    }
+    out.push(inlineFmt(e));
+  }
+  hl.innerHTML = out.join("\n") + "\n";
+  syncScroll();
+}
+function syncScroll(){
+  hl.scrollTop = ed.scrollTop; hl.scrollLeft = ed.scrollLeft;
+}
+
+/* ---------- 大纲（F030） ---------- */
+function parseHeadings(){
+  var lines = S.text.split("\n"), res = [], inCode = false, i;
+  for (i = 0; i < lines.length; i++) {
+    var t = lines[i].trim();
+    if (/^(```|~~~)/.test(t)) { inCode = !inCode; continue; }
+    if (inCode) continue;
+    var m = t.match(/^(#{1,6})\s+(.*)$/);
+    if (m) { res.push({ level: m[1].length, title: m[2], line: i }); continue; }
+    if (t !== "" && i + 1 < lines.length) {
+      if (/^===+\s*$/.test(lines[i+1].trim())) res.push({ level: 1, title: t, line: i });
+      else if (/^---+\s*$/.test(lines[i+1].trim())) res.push({ level: 2, title: t, line: i });
+    }
+  }
+  return res;
+}
+function renderOutline(){
+  var hs = parseHeadings(), box = $("outline"), i;
+  box.innerHTML = "";
+  if (!hs.length) {
+    box.innerHTML = '<div class="ol-empty">暂无标题（空数据态）<br>输入 # 开头的行即生成大纲</div>';
+    return;
+  }
+  hs.forEach(function(h){
+    var d = document.createElement("div");
+    d.className = "ol-item l" + h.level;
+    d.textContent = h.title;
+    d.style.paddingLeft = (8 + (h.level - 1) * 16) + "px";
+    d.title = "第 " + (h.line + 1) + " 行 · 点击跳转";
+    d.onclick = function(){ jumpToLine(h.line); };
+    box.appendChild(d);
+  });
+}
+function jumpToLine(n){
+  var pos = 0, i;
+  var lines = S.text.split("\n");
+  for (i = 0; i < n; i++) pos += lines[i].length + 1;
+  var len = lines[n] ? lines[n].length : 0;
+  ed.focus();
+  ed.setSelectionRange(pos, pos + len);
+  var target = Math.max(0, n * 24 - ed.clientHeight / 3);
+  ed.scrollTop = target;
+  syncScroll();
+  setTimeout(function(){ ed.setSelectionRange(pos, pos); }, 220); // 光标收缩行首（同旧行为）
+  toast("大纲跳转：第 " + (n + 1) + " 行（光标将收缩到行首）");
+}
+
+/* ---------- 状态栏（F031） ---------- */
+function renderStats(){
+  var words = S.text.split(/\s+/).filter(function(w){ return w.length > 0; }).length;
+  var chars = S.text.length;
+  var read = Math.max(1, Math.floor(words / 200));
+  $("stWords").textContent = words + " words";
+  $("stChars").textContent = chars + " characters";
+  $("stRead").textContent = read + " min read";
+}
+
+/* ---------- 标题与编辑标记（PAGE001） ---------- */
+function renderTitle(){
+  $("docname").textContent = S.savedName || "Untitled";
+  $("editedDot").style.display = S.edited ? "inline" : "none";
+}
+function renderAll(){
+  renderHighlight(); renderOutline(); renderStats(); renderTitle(); refreshMenuState(); updateFmtBtns();
+}
+
+/* ---------- 自动保存（F008） ---------- */
+function scheduleAutosave(){
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  if (!S.autosave || !S.savedOnce) return;
+  autosaveTimer = setTimeout(function(){
+    if (!S.edited) return;
+    if (S.diskReadonly) { toast("自动保存失败：磁盘只读（旧版仅 DebugLog 记录）", "err"); return; }
+    S.edited = false; renderTitle();
+    toast("已自动保存（3 秒静默后落盘 — F008）", "ok");
+  }, 3000);
+}
+
+/* ---------- 编辑事件 ---------- */
+ed.addEventListener("scroll", syncScroll);
+ed.addEventListener("input", function(){
+  pushUndo("type");
+  S.text = ed.value;
+  S.edited = true;
+  if (S.imeDemo) {
+    // IME 保护（F047）：组合期间仅更新统计，不重建高亮
+    renderStats(); renderTitle();
+    $("imebar").style.display = "block";
+    positionImeBar();
+  } else {
+    renderHighlight(); renderOutline(); renderStats(); renderTitle();
+  }
+  scheduleAutosave();
+});
+ed.addEventListener("compositionend", function(){
+  $("imebar").style.display = "none";
+  if (S.imeDemo) { renderHighlight(); renderOutline(); toast("组合结束：恢复高亮重建（IME 保护解除）", "ok", 1800); }
+});
+function positionImeBar(){
+  function lineOfPos(p){
+    var n = 0, i;
+    for (i = 0; i < p && i < S.text.length; i++) if (S.text[i] === "\n") n++;
+    return n;
+  }
+  var line = lineOfPos(ed.selectionStart);
+  var top = 18 + line * (S.fontSize * 1.62) - ed.scrollTop;
+  $("imebar").style.top = Math.max(0, top - 22) + "px";
+}
+
+/* ---------- 键盘：智能列表 + 快捷键（F043-F047 等） ---------- */
+function lineBounds(pos){
+  var start = S.text.lastIndexOf("\n", pos - 1) + 1;
+  var end = S.text.indexOf("\n", pos);
+  if (end === -1) end = S.text.length;
+  return [start, end];
+}
+function listMarker(line){
+  var t = line.trim();
+  var m = t.match(/^(-\s\[[xX ]\]\s)/); if (m) return { raw: m[1], next: "- [ ] " };
+  m = t.match(/^(\d+)\.\s/); if (m) return { raw: m[1] + ". ", next: (parseInt(m[1], 10) + 1) + ". " };
+  m = t.match(/^([-*+])\s/); if (m) return { raw: m[1] + " ", next: m[1] + " " };
+  return null;
+}
+ed.addEventListener("keydown", function(ev){
+  var mod = ev.metaKey || ev.ctrlKey;
+
+  /* 拦截浏览器默认的 Cmd+Z，走原型撤销栈 */
+  if (mod && ev.key.toLowerCase() === "z" && !ev.shiftKey && !ev.altKey) { ev.preventDefault(); doUndo(); return; }
+  if (mod && ev.key.toLowerCase() === "z" && ev.shiftKey) { ev.preventDefault(); doRedo(); return; }
+  if (mod && ev.key.toLowerCase() === "y") { ev.preventDefault(); doRedo(); return; }
+
+  if (mod) {
+    var k = ev.key.toLowerCase();
+    if (k === "b") { ev.preventDefault(); fmtWrap("**", "**"); return; }
+    if (k === "i") { ev.preventDefault(); fmtWrap("*", "*"); return; }
+    if (k === "k") { ev.preventDefault(); fmtWrap("`", "`"); return; }
+    if (k === "s" && ev.shiftKey) { ev.preventDefault(); saveAsDialog(); return; }
+    if (k === "s") { ev.preventDefault(); doSave(); return; }
+    if (k === "f" && ev.ctrlKey) { ev.preventDefault(); toggleFocus(); return; }
+    if (k === "o" && ev.ctrlKey) { ev.preventDefault(); toggleSidebar(); return; }
+    if (k === "e" && ev.ctrlKey) { ev.preventDefault(); exportHtmlDialog(); return; }
+    if (k === "p" && ev.ctrlKey) { ev.preventDefault(); exportPdfDialog(); return; }
+    if (k === "f") { ev.preventDefault(); openFind(); return; }
+    if (k === "j") { ev.preventDefault(); jumpToSel(); return; }
+    if (k === "n" && !ev.shiftKey) { ev.preventDefault(); newDoc(); return; }
+    if (ev.key >= "1" && ev.key <= "3" && ev.shiftKey && !ev.altKey) {
+      ev.preventDefault(); headingPrefix(parseInt(ev.key, 10)); return;
+    }
+    return; // 其余 ⌘ 组合交给浏览器/菜单
+  }
+
+  if (S.imeDemo && (ev.key === "Enter" || ev.key === "Tab" || ev.key === "Backspace")) {
+    toast("IME 组合期间：编辑键拦截全部放行（F047）", "", 1500);
+    return;
+  }
+
+  var pos = ed.selectionStart;
+  var b = lineBounds(pos);
+  var line = S.text.slice(b[0], b[1]);
+
+  /* Enter：列表续行（F043/F044） */
+  if (ev.key === "Enter" && !ev.shiftKey) {
+    var mk = listMarker(line);
+    if (mk) {
+      var content = line.trim().slice(mk.raw.length).trim();
+      var after = S.text.slice(pos, b[1]);
+      if (after.trim() === "") {
+        ev.preventDefault();
+        pushUndo("op");
+        if (content === "") {
+          // 空列表项：删 marker 后默认换行（终止列表）
+          var newText = S.text.slice(0, b[0]) + S.text.slice(b[0], b[1]).replace(mk.raw, "") + S.text.slice(b[1]);
+          var nl = newText.indexOf("\n", b[0]);
+          setText(newText, b[0], b[0]);
+          toast("空列表项 Enter：删除标记并终止列表（F044）");
+        } else {
+          var ins = "\n" + mk.next;
+          setText(S.text.slice(0, pos) + ins + S.text.slice(pos), pos + ins.length, pos + ins.length);
+          toast("列表续行：" + JSON.stringify(mk.next.trim()) + "（F043）", "", 1800);
+        }
+        markEdited();
+        return;
+      }
+    }
+  }
+
+  /* Tab / Shift+Tab：列表缩进（F045） */
+  if (ev.key === "Tab") {
+    if (listMarker(line)) {
+      ev.preventDefault();
+      pushUndo("op");
+      if (!ev.shiftKey) {
+        setText(S.text.slice(0, b[0]) + "  " + S.text.slice(b[0]), pos + 2, pos + 2);
+        toast("Tab：列表项缩进 +2 空格（F045）", "", 1500);
+      } else {
+        var cut = line.startsWith("  ") ? 2 : (line.startsWith("\t") ? 1 : 0);
+        if (cut > 0) {
+          setText(S.text.slice(0, b[0]) + S.text.slice(b[0] + cut), Math.max(0, pos - cut), Math.max(0, pos - cut));
+          toast("⇧Tab：取消缩进 -" + cut + " 字符（F045）", "", 1500);
+        }
+      }
+      markEdited();
+      return;
+    }
+  }
+
+  /* Backspace：删除空列表项（F046） */
+  if (ev.key === "Backspace" && ed.selectionStart === ed.selectionEnd) {
+    var mk2 = listMarker(line);
+    if (mk2 && pos - b[0] >= mk2.raw.length) {
+      var content2 = line.trim().slice(mk2.raw.length).trim();
+      if (content2 === "" && pos - b[0] === mk2.raw.length) {
+        ev.preventDefault();
+        pushUndo("op");
+        var start = b[0] > 0 ? b[0] - 1 : 0;
+        var end = b[1];
+        setText(S.text.slice(0, start) + S.text.slice(end), start, start);
+        toast("Backspace：删除空列表项并合并上一行（F046）");
+        markEdited();
+        return;
+      }
+    }
+  }
+});
+function markEdited(){ S.edited = true; renderTitle(); scheduleAutosave(); }
+
+/* ---------- 格式化命令（F032-F039） ---------- */
+function hasSel(){ return ed.selectionStart !== ed.selectionEnd; }
+function fmtWrap(pre, suf){
+  if (!hasSel()) { toast("请先选中文本（菜单禁用规则 F058）"); return; }
+  pushUndo("op");
+  var a = ed.selectionStart, b = ed.selectionEnd;
+  var sel = S.text.slice(a, b);
+  var wrapped = pre + sel + suf;
+  setText(S.text.slice(0, a) + wrapped + S.text.slice(b), a, a + wrapped.length);
+  markEdited();
+}
+function headingPrefix(n){
+  pushUndo("op");
+  var pos = ed.selectionStart;
+  var b = lineBounds(pos);
+  var line = S.text.slice(b[0], b[1]).replace(/\n$/, "");
+  var trimmed = line;
+  while (trimmed.indexOf("#") === 0) trimmed = trimmed.slice(1).trim(); // 剥离旧 #
+  var prefix = "";
+  for (var i = 0; i < n; i++) prefix += "#";
+  prefix += " ";
+  var newLine = prefix + trimmed;
+  setText(S.text.slice(0, b[0]) + newLine + S.text.slice(b[1]), b[0] + prefix.length, b[0] + prefix.length);
+  markEdited();
+  toast("Heading " + n + "：行首前缀替换（F036）", "", 1500);
+}
+function quoteLine(){
+  pushUndo("op");
+  var pos = ed.selectionStart;
+  var b = lineBounds(pos);
+  var line = S.text.slice(b[0], b[1]).replace(/\n$/, "");
+  setText(S.text.slice(0, b[0]) + "> " + line + S.text.slice(b[1]), b[0] + 2, b[0] + 2);
+  markEdited();
+  toast("Blockquote：行首 > 前缀（F037）", "", 1500);
+}
+function codeBlock(){
+  pushUndo("op");
+  var a = ed.selectionStart, b = ed.selectionEnd;
+  var sel = S.text.slice(a, b);
+  var ins = "\n```\n" + sel + "\n```\n";
+  setText(S.text.slice(0, a) + ins + S.text.slice(b), a + 5, a + 5);
+  markEdited();
+  toast("Code Block：围栏包裹（F038）", "", 1500);
+}
+function insertLink(){
+  pushUndo("op");
+  var a = ed.selectionStart, b = ed.selectionEnd;
+  if (a !== b) {
+    var sel = S.text.slice(a, b);
+    var s = "[" + sel + "](url)";
+    setText(S.text.slice(0, a) + s + S.text.slice(b), a + sel.length + 3, a + sel.length + 6);
+  } else {
+    var s2 = "[text](url)";
+    setText(S.text.slice(0, a) + s2 + S.text.slice(b), a + 1, a + 5);
+  }
+  markEdited();
+  toast("Insert Link：占位符已选中（F039）", "", 1500);
+}
+function jumpToSel(){
+  ed.focus();
+  var pos = ed.selectionStart;
+  var b = lineBounds(pos);
+  ed.scrollTop = Math.max(0, (b[0] - S.text.slice(0, b[0]).split("\n").length * 0) , 0);
+  var lineNum = S.text.slice(0, pos).split("\n").length - 1;
+  ed.scrollTop = Math.max(0, lineNum * (S.fontSize * 1.62) - ed.clientHeight / 3);
+  syncScroll();
+  toast("Jump to Selection ⌘J（F027）", "", 1400);
+}
+
+/* ---------- 工具栏（PAGE006） ---------- */
+$("tbSidebar").onclick = toggleSidebar;
+document.querySelectorAll(".fmtbtn").forEach(function(btn){
+  btn.onclick = function(){
+    var f = btn.dataset.fmt;
+    if (f === "bold") fmtWrap("**", "**");
+    else if (f === "italic") fmtWrap("*", "*");
+    else if (f === "code") fmtWrap("`", "`");
+  };
+});
+$("tbHeading").onclick = function(){ headingPrefix(1); };
+$("tbQuote").onclick = quoteLine;
+$("tbCodeBlock").onclick = codeBlock;
+function updateFmtBtns(){
+  var dis = !hasSel();
+  document.querySelectorAll(".fmtbtn").forEach(function(b){ b.disabled = dis; });
+}
+ed.addEventListener("keyup", updateFmtBtns);
+ed.addEventListener("select", updateFmtBtns);
+document.addEventListener("selectionchange", updateFmtBtns);
+
+/* ---------- 侧栏 / 专注（F028/F029） ---------- */
+function toggleSidebar(){
+  S.sidebarOn = !S.sidebarOn;
+  $("sidebar").classList.toggle("collapsed", !S.sidebarOn);
+  toast(S.sidebarOn ? "显示大纲侧栏（⌃⌘O — F028）" : "隐藏大纲侧栏（⌃⌘O — F028）", "", 1400);
+}
+function toggleFocus(){
+  S.focusMode = !S.focusMode;
+  $("macwin").classList.toggle("focus", S.focusMode);
+  toast(S.focusMode
+    ? "专注模式：侧栏+状态栏+工具栏已隐藏（0.25s 动画 — F029/PAGE007）"
+    : "退出专注模式：界面还原（F029）");
+}
+
+/* ---------- 菜单栏（PAGE002） ---------- */
+var openDrop = null, openSub = null;
+function closeMenus(){
+  if (openDrop) { openDrop.remove(); openDrop = null; }
+  if (openSub) { openSub.remove(); openSub = null; }
+  document.querySelectorAll("#menubar .mtitle.open").forEach(function(el){ el.classList.remove("open"); });
+}
+function mi(label, key, fn, opts){
+  var d = document.createElement("div");
+  d.className = "di" + ((opts && opts.dis) ? " dis" : "");
+  var left = document.createElement("span"); left.textContent = label;
+  d.appendChild(left);
+  if (key) { var s = document.createElement("span"); s.className = "sc"; s.textContent = key; d.appendChild(s); }
+  if (opts && opts.sub) {
+    d.className += " dsub-mark";
+    d.addEventListener("mouseenter", function(){ showSub(d, opts.sub); });
+  } else {
+    d.addEventListener("mouseenter", function(){ if (openSub) { openSub.remove(); openSub = null; } });
+    d.addEventListener("click", function(ev){ ev.stopPropagation(); closeMenus(); if (fn) fn(); });
+  }
+  return d;
+}
+function msep(menu){ var s = document.createElement("div"); s.className = "dsep"; menu.appendChild(s); }
+function showSub(anchor, items){
+  if (openSub) { openSub.remove(); }
+  openSub = document.createElement("div");
+  openSub.className = "subdrop";
+  items().forEach(function(it){ openSub.appendChild(it); });
+  anchor.style.position = "relative";
+  anchor.appendChild(openSub);
+}
+function recentItems(){
+  var arr = [];
+  if (!S.recent.length) {
+    var e = document.createElement("div"); e.className = "di dis"; e.textContent = "（空）"; arr.push(e);
+  }
+  S.recent.forEach(function(name){
+    arr.push(mi(name, "", function(){ openMockByName(name); }, {}));
+  });
+  return arr;
+}
+function menuDefs(){
+  return {
+    app: function(m){
+      m.appendChild(mi("About PaperMD", "", function(){ openModal("mAbout"); }));
+      msep(m);
+      m.appendChild(mi("Preferences…", "⌘,", function(){ openPrefs(); }));
+      msep(m);
+      m.appendChild(mi("Hide PaperMD", "⌘H", function(){ toast("系统行为：隐藏 PaperMD（旧版系统菜单）", "", 1500); }));
+      m.appendChild(mi("Hide Others", "⌥⌘H", function(){ toast("系统行为：隐藏其他应用", "", 1500); }));
+      m.appendChild(mi("Show All", "", function(){ toast("系统行为：显示全部", "", 1500); }));
+      msep(m);
+      m.appendChild(mi("Quit PaperMD", "⌘Q", function(){ toast("系统行为：退出（原型不退出评审）", "", 1500); }));
+    },
+    file: function(m){
+      m.appendChild(mi("New", "⌘N", function(){ newDoc(); }));
+      m.appendChild(mi("Open…", "⌘O", function(){ openOpenPanel(); }));
+      m.appendChild(mi("Open Recent", "", null, { sub: recentItems }));
+      msep(m);
+      m.appendChild(mi("Close", "⌘W", function(){ closeWin(); }));
+      m.appendChild(mi("Save", "⌘S", function(){ doSave(); }));
+      m.appendChild(mi("Save As…", "⇧⌘S", function(){ saveAsDialog(); }));
+      msep(m);
+      m.appendChild(mi("Export to HTML…", "⌃⌘E", function(){ exportHtmlDialog(); }));
+      m.appendChild(mi("Export to PDF…", "⌃⌘P", function(){ exportPdfDialog(); }));
+    },
+    edit: function(m){
+      m.appendChild(mi("Undo", "⌘Z", function(){ doUndo(); }, { dis: undoStack.length === 0 }));
+      m.appendChild(mi("Redo", "⇧⌘Z", function(){ doRedo(); }, { dis: redoStack.length === 0 }));
+      msep(m);
+      m.appendChild(mi("Cut", "⌘X", function(){ doCutCopy("cut"); }, { dis: !hasSel() }));
+      m.appendChild(mi("Copy", "⌘C", function(){ doCutCopy("copy"); }, { dis: !hasSel() }));
+      m.appendChild(mi("Paste (Plain Text)", "⌘V", function(){ doPastePlain(); }));
+      m.appendChild(mi("Select All", "⌘A", function(){ ed.focus(); ed.select(); }));
+      msep(m);
+      m.appendChild(mi("Find…", "⌘F", function(){ openFind(); }));
+      m.appendChild(mi("Find Next", "⌘G", function(){ toast("旧版事实：绑定系统 performFindPanelAction，未联动自研面板（F024 部分实现）", "err", 3200); }));
+      m.appendChild(mi("Find Previous", "⇧⌘G", function(){ toast("同上：⇧⌘G 为系统绑定（F024）", "err", 2600); }));
+      m.appendChild(mi("Replace", "⌥⌘F", function(){ toast("同上：⌥⌘F 为系统绑定（F024）", "err", 2600); }));
+      msep(m);
+      m.appendChild(mi("Show Spelling and Grammar", "⌘:", function(){ toast("系统拼写面板（连续拼写已关闭 — F025 部分实现）", "", 2600); }));
+      m.appendChild(mi("Check Document Now", "⌘;", function(){ toast("系统行为：立即检查拼写（F025）", "", 1800); }));
+      msep(m);
+      m.appendChild(mi("Make Upper Case", "⌃⌘U", function(){ transformSel("upper"); }, { dis: !hasSel() }));
+      m.appendChild(mi("Make Lower Case", "⌃⌘L", function(){ transformSel("lower"); }, { dis: !hasSel() }));
+      m.appendChild(mi("Capitalize", "⌥⌘C", function(){ transformSel("cap"); }, { dis: !hasSel() }));
+      msep(m);
+      m.appendChild(mi("Jump to Selection", "⌘J", function(){ jumpToSel(); }));
+    },
+    view: function(m){
+      m.appendChild(mi("Toggle Sidebar", "⌃⌘O", function(){ toggleSidebar(); }));
+      m.appendChild(mi("Toggle Focus Mode", "⌃⌘F", function(){ toggleFocus(); }));
+    },
+    format: function(m){
+      m.appendChild(mi("Bold", "⌘B", function(){ fmtWrap("**", "**"); }, { dis: !hasSel() }));
+      m.appendChild(mi("Italic", "⌘I", function(){ fmtWrap("*", "*"); }, { dis: !hasSel() }));
+      m.appendChild(mi("Code", "⌘K", function(){ fmtWrap("`", "`"); }, { dis: !hasSel() }));
+      m.appendChild(mi("Strikethrough", "⌥⌘S", function(){ fmtWrap("~~", "~~"); }, { dis: !hasSel() }));
+      msep(m);
+      m.appendChild(mi("Heading 1", "⇧⌘1", function(){ headingPrefix(1); }));
+      m.appendChild(mi("Heading 2", "⇧⌘2", function(){ headingPrefix(2); }));
+      m.appendChild(mi("Heading 3", "⇧⌘3", function(){ headingPrefix(3); }));
+      msep(m);
+      m.appendChild(mi("Blockquote", "⌥⌘>", function(){ quoteLine(); }));
+      m.appendChild(mi("Code Block", "⌥⌘C", function(){ codeBlock(); }));
+      m.appendChild(mi("Insert Link", "⇧⌘L", function(){ insertLink(); }));
+    },
+    window: function(m){
+      m.appendChild(mi("Minimize", "⌘M", function(){ minimizeWin(); }));
+      m.appendChild(mi("Zoom", "", function(){ zoomWin(); }));
+      msep(m);
+      m.appendChild(mi("Bring All to Front", "", function(){ toast("系统行为：全部置前（F056）", "", 1500); }));
+    },
+    help: function(m){
+      m.appendChild(mi("PaperMD Help", "⇧⌘?", function(){ toast("旧版无 Apple Help book —— 行为【未知】（F055 部分实现）", "err", 3000); }));
+    }
+  };
+}
+function refreshMenuState(){
+  /* 菜单为即时构建，无需持久刷新；占位以满足“禁用态随选区变化”声明 */
+}
+document.querySelectorAll("#menubar .mtitle").forEach(function(el){
+  el.addEventListener("click", function(ev){
+    ev.stopPropagation();
+    var wasOpen = el.classList.contains("open");
+    closeMenus();
+    if (wasOpen) return;
+    el.classList.add("open");
+    var drop = document.createElement("div");
+    drop.className = "dropdown";
+    var key = el.dataset.menu;
+    menuDefs()[key](drop);
+    el.appendChild(drop);
+    openDrop = drop;
+  });
+  el.addEventListener("mouseenter", function(){
+    if (document.querySelector("#menubar .mtitle.open") && !el.classList.contains("open")) {
+      closeMenus();
+      el.click();
+    }
+  });
+});
+document.addEventListener("click", function(ev){
+  if (!ev.target.closest("#menubar")) closeMenus();
+});
+
+/* ---------- 剪贴板相关（F012/F013） ---------- */
+function doCutCopy(mode){
+  if (!hasSel()) return;
+  var sel = S.text.slice(ed.selectionStart, ed.selectionEnd);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(sel).then(function(){
+      toast((mode === "cut" ? "已剪切" : "已复制") + "（浏览器剪贴板，降级演示 F012）", "ok", 1600);
+    }).catch(function(){ toast("剪贴板被浏览器策略拦截（评审降级说明）", "err", 2200); });
+  } else {
+    toast("浏览器不支持 clipboard API（评审降级说明）", "err", 2200);
+  }
+  if (mode === "cut") {
+    pushUndo("op");
+    var a = ed.selectionStart;
+    setText(S.text.slice(0, a) + S.text.slice(ed.selectionEnd), a, a);
+    markEdited();
+  }
+}
+function doPastePlain(){
+  if (navigator.clipboard && navigator.clipboard.readText) {
+    navigator.clipboard.readText().then(function(txt){
+      if (!txt) { toast("剪贴板为空"); return; }
+      pushUndo("op");
+      var a = ed.selectionStart, b = ed.selectionEnd;
+      setText(S.text.slice(0, a) + txt + S.text.slice(b), a + txt.length, a + txt.length);
+      markEdited();
+      toast("已粘贴纯文本（去格式 — F013）", "ok", 1600);
+    }).catch(function(){
+      toast("浏览器限制读取剪贴板：请用 ⌘V 系统粘贴（同为纯文本插入 — F013）", "err", 2600);
+    });
+  } else {
+    toast("浏览器不支持 clipboard API：请用 ⌘V（同为纯文本插入 — F013）", "err", 2600);
+  }
+}
+function transformSel(kind){
+  if (!hasSel()) return;
+  pushUndo("op");
+  var a = ed.selectionStart, b = ed.selectionEnd;
+  var sel = S.text.slice(a, b);
+  var out = kind === "upper" ? sel.toUpperCase() : (kind === "lower" ? sel.toLowerCase() : sel.replace(/\b\w/g, function(c){ return c.toUpperCase(); }));
+  setText(S.text.slice(0, a) + out + S.text.slice(b), a, a + out.length);
+  markEdited();
+  toast("Transformations：大小写转换（F026）", "", 1500);
+}
+
+/* ---------- 文档操作（F002/F003/F006/F007） ---------- */
+function newDoc(){
+  S.docCounter++;
+  S.savedName = null; S.fileName = null;
+  S.savedOnce = false; S.edited = false; S.pendingAssets = [];
+  undoStack = []; redoStack = [];
+  setText(WELCOME, WELCOME.length, WELCOME.length);
+  toast("新建文档 " + S.docCounter + "（⌘N — F002），已预填欢迎文本（F053）", "ok");
+}
+function openOpenPanel(){
+  S.openSel = null;
+  var list = $("openList");
+  list.innerHTML = "";
+  MOCK_FILES.forEach(function(f){
+    var d = document.createElement("div");
+    d.className = "fileitem";
+    d.innerHTML = '<span class="fic">' + (f.kind === "broken" ? "🚫" : "📄") + "</span><span>" + f.name + "</span><small>" + f.size + "</small>";
+    d.onclick = function(){
+      list.querySelectorAll(".fileitem").forEach(function(x){ x.classList.remove("sel"); });
+      d.classList.add("sel"); S.openSel = f;
+    };
+    d.ondblclick = function(){ S.openSel = f; doOpen(); };
+    list.appendChild(d);
+  });
+  openModal("mOpen");
+}
+$("btnDoOpen").onclick = doOpen;
+function doOpen(){
+  if (!S.openSel) { toast("请先选择文件"); return; }
+  closeModal("mOpen");
+  openMockByName(S.openSel.name, S.openSel);
+}
+function openMockByName(name, f){
+  f = f || MOCK_FILES.filter(function(x){ return x.name === name; })[0];
+  if (!f) { toast("最近文档已失效：旧版仅 DebugLog（PAGE010 异常）", "err"); return; }
+  if (f.broken) {
+    /* 失败态：解码失败 → 空文档兜底（旧版行为） */
+    S.savedName = name; S.fileName = name; S.savedOnce = true; S.edited = false;
+    undoStack = []; redoStack = [];
+    setText("", 0, 0);
+    toast("打开失败：UTF-8 解码失败 → 回落空文档（旧版不崩溃，静默兜底 — 失败态）", "err", 4200);
+    pushRecent(name);
+    return;
+  }
+  if (f.big) {
+    /* 加载态 */
+    $("loadingText").textContent = "正在打开 " + name + " …（2.4 MB）";
+    $("loading").style.display = "flex";
+    setTimeout(function(){
+      $("loading").style.display = "none";
+      loadDoc(name, SAMPLE + "\n\n" + Array(60).join("加载完成的长文档内容行。\n"));
+      toast("大文档打开完成（加载态演示 — PAGE004）", "ok");
+    }, 1400);
+    return;
+  }
+  loadDoc(name, name === "WritingSessionFixture.md" ? WEEKLY : SAMPLE);
+  toast("已打开 " + name + "（⌘O — F003）", "ok");
+}
+function loadDoc(name, text){
+  S.savedName = name; S.fileName = name; S.savedOnce = true; S.edited = false;
+  S.pendingAssets = [];
+  undoStack = []; redoStack = [];
+  setText(text, 0, 0);
+  pushRecent(name);
+}
+function pushRecent(name){
+  S.recent = [name].concat(S.recent.filter(function(n){ return n !== name; })).slice(0, 5);
+}
+var WEEKLY = [
+"# 长时写作回归样例",
+"",
+"用于连续输入、撤销、列表续行与光标稳定性的人工测试。",
+"",
+"## 段落",
+"",
+"这是一段普通文字，用来测试在段落中间插入 **粗体**、*斜体* 和 `代码` 时，光标是否稳定。",
+"",
+"## 列表",
+"",
+"- 第一项",
+"- 第二项",
+"  - 嵌套项",
+"- [ ] 待办",
+"- [x] 已完成",
+"",
+"1. 有序一",
+"2. 有序二",
+"",
+"## 代码块",
+"",
+"```swift",
+"func hello() {",
+"    print(\"PaperMD\")",
+"}",
+"```",
+"",
+"## 引用",
+"",
+"> 这是一段引用文字。",
+"> 第二行引用。"
+].join("\n");
+
+/* ---------- 保存（F006/F007/F008/F017） ---------- */
+function doSave(){
+  if (!S.savedOnce) { saveAsDialog(); return; }
+  if (S.diskReadonly) { showError("无法存储“" + S.savedName + "”：磁盘为只读（异常态演示）。旧版走系统错误反馈。"); return; }
+  migrateAssets();
+  S.edited = false; renderTitle();
+  toast("已保存 " + S.savedName + "（⌘S — F006，内容=源文本）", "ok");
+}
+function saveAsDialog(){
+  $("saveTitle").textContent = "Save As";
+  $("saveName").value = S.savedName || "untitled.md";
+  if ($("saveName").value.indexOf(".md") === -1) $("saveName").value += ".md";
+  openModal("mSave");
+}
+$("btnDoSave").onclick = function(){
+  var name = $("saveName").value.trim() || "untitled.md";
+  if (name.indexOf(".md") === -1) name += ".md";
+  if (S.diskReadonly) { closeModal("mSave"); showError("无法存储“" + name + "”：磁盘为只读（异常态演示）。"); return; }
+  /* F017 首存迁移：临时图片路径改写 */
+  migrateAssets();
+  S.savedName = name; S.fileName = name; S.savedOnce = true; S.edited = false;
+  pushRecent(name);
+  renderTitle();
+  closeModal("mSave");
+  toast("已另存为 " + name + "（⇧⌘S — F007）", "ok");
+};
+function migrateAssets(){
+  if (S.pendingAssets.length && !S.savedOnce) {
+    S.pendingAssets.forEach(function(old){
+      S.text = S.text.split("![](" + old + ")").join("![]({文档名}.assets/" + old + ")");
+    });
+    setText(S.text, ed.selectionStart, ed.selectionEnd);
+    toast("首次保存：临时图片已迁移至 {文档名}.assets/ 并改写路径（F017）", "ok", 3200);
+    S.pendingAssets = [];
+  }
+}
+
+/* ---------- 图片（F014-F018） ---------- */
+function simulatePasteImage(){
+  pushUndo("op");
+  var a = ed.selectionStart;
+  var pending = !S.savedOnce;
+  var ts = Date.now();
+  var fname = "image-" + ts + "-a3f2c1.png";
+  var path = pending ? fname : "{文档名}.assets/" + fname;
+  var md = "![](" + path + ")";
+  if (pending) S.pendingAssets.push(fname);
+  setText(S.text.slice(0, a) + md + S.text.slice(a), a + md.length, a + md.length);
+  markEdited();
+  toast("图片已" + (pending ? "写入临时目录（未保存文档）" : "落盘 {文档名}.assets/") + "，插入源文本 " + md + "（F014/F016）\n撤销将同时删除文本与文件（F018）", "ok", 4200);
+}
+$("btnSimPasteImg").onclick = function(){ ed.focus(); simulatePasteImage(); };
+
+/* ---------- 查找替换（PAGE009） ---------- */
+function openFind(){ openModal("mFind"); setTimeout(function(){ $("findQ").focus(); }, 50); }
+$("btnFindPanel").onclick = openFind;
+function findRegexOrPlain(q, flags){
+  if ($("findRegex").checked) {
+    try { return new RegExp(q, flags || "g"); }
+    catch (e) { toast("正则表达式非法：旧版静默保持原文（F023 异常）", "err", 2600); return null; }
+  }
+  var escQ = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(escQ, flags || "g");
+}
+$("btnFindNext").onclick = function(){
+  var q = $("findQ").value;
+  if (!q) { toast("查询为空：忽略（PAGE009 异常规则）"); return; }
+  var re = findRegexOrPlain(q);
+  if (!re) return;
+  re.lastIndex = ed.selectionEnd;
+  var m = re.exec(S.text);
+  if (!m && ed.selectionEnd > 0) {
+    re.lastIndex = 0;
+    m = re.exec(S.text);
+    if (m) toast("已回绕到文档头继续查找（F020）", "", 1600);
+  }
+  if (!m) { toast("未找到匹配（旧版无提示，保持原状）", "err", 2000); return; }
+  ed.focus();
+  ed.setSelectionRange(m.index, m.index + m[0].length);
+  var lineNum = S.text.slice(0, m.index).split("\n").length - 1;
+  ed.scrollTop = Math.max(0, lineNum * (S.fontSize * 1.62) - ed.clientHeight / 3);
+  syncScroll();
+};
+$("btnReplaceOne").onclick = function(){
+  var q = $("findQ").value, r = $("findR").value;
+  if (!q) { toast("查询为空：忽略"); return; }
+  var re = findRegexOrPlain(q);
+  if (!re) return;
+  var range = null;
+  if (hasSel()) {
+    var m0 = findRegexOrPlain(q);
+    var sel = S.text.slice(ed.selectionStart, ed.selectionEnd);
+    if (sel === q || m0.test(sel)) range = [ed.selectionStart, ed.selectionEnd];
+  }
+  if (!range) {
+    var m = re.exec(S.text);
+    if (!m) { toast("未找到匹配", "err", 1800); return; }
+    range = [m.index, m.index + m[0].length];
+  }
+  pushUndo("op");
+  var rep = $("findRegex").checked ? S.text.slice(range[0], range[1]).replace(findRegexOrPlain(q), r) : r;
+  setText(S.text.slice(0, range[0]) + rep + S.text.slice(range[1]), range[0] + rep.length, range[0] + rep.length);
+  markEdited();
+  $("btnFindNext").click();
+  toast("已替换并跳到下一个（F021）", "ok", 1500);
+};
+$("btnReplaceAll").onclick = function(){
+  var q = $("findQ").value, r = $("findR").value;
+  if (!q) { toast("查询为空：忽略"); return; }
+  var re = findRegexOrPlain(q, "g");
+  if (!re) return;
+  var before = S.text;
+  var after = before.replace(re, r);
+  if (after === before) { toast("未发生替换（无匹配）", "", 1800); return; }
+  pushUndo("op");
+  setText(after, 0, 0);
+  markEdited();
+  toast("全部替换完成（F022）\n⚠ 旧版事实：直接重置整文，不入撤销栈且光标重置——本原型保留可撤销以便评审对比", "ok", 3800);
+};
+
+/* ---------- 导出（PAGE012/PAGE013） ---------- */
+function mdToHtml(){
+  var lines = S.text.split("\n");
+  var out = [], inCode = false, inUl = false, inOl = false, inQ = false, inTable = false, hasHead = false;
+  function escH(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function inline(s){
+    s = escH(s);
+    s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/\*(.+?)\*/g, "<em>$1</em>");
+    s = s.replace(/~~(.+?)~~/g, "<del>$1</del>");
+    s = s.replace(/`(.+?)`/g, "<code>$1</code>");
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    return s;
+  }
+  function closeAll(){
+    if (inUl) { out.push("</ul>"); inUl = false; }
+    if (inOl) { out.push("</ol>"); inOl = false; }
+    if (inQ) { out.push("</blockquote>"); inQ = false; }
+    if (inTable) { out.push("</table>"); inTable = false; hasHead = false; }
+  }
+  lines.forEach(function(line, i){
+    var t = line.trim();
+    var isSep = /^\|?[\s:-]+\|[\s|:-]+$/.test(t);
+    var isRow = t.indexOf("|") !== -1 && !isSep;
+    if (isRow) {
+      var nextIsSep = i + 1 < lines.length && /^\|?[\s:-]+\|[\s|:-]+$/.test(lines[i+1].trim());
+      if (nextIsSep) {
+        closeAll();
+        out.push("<table><thead><tr><th>" + t.split("|").filter(function(x){ return x.trim(); }).map(function(x){ return inline(x.trim()); }).join("</th><th>") + "</th></tr></thead><tbody>");
+        inTable = true; hasHead = true;
+      } else if (inTable && hasHead) {
+        out.push("<tr><td>" + t.split("|").filter(function(x, ix, arr){ return x.trim(); }).map(function(x){ return inline(x.trim()); }).join("</td><td>") + "</td></tr>");
+      }
+      return;
+    }
+    if (isSep) return;
+    if (/^(```|~~~)/.test(t)) { closeAll(); if (!inCode) { out.push("<pre><code>"); inCode = true; } else { out.push("</code></pre>"); inCode = false; } return; }
+    if (inCode) { out.push(escH(line)); return; }
+    if (t === "") { closeAll(); return; }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) { closeAll(); out.push("<hr>"); return; }
+    var h = t.match(/^(#{1,6})\s+(.*)$/);
+    if (h) { closeAll(); var lv = h[1].length; out.push("<h" + lv + ">" + inline(h[2]) + "</h" + lv + ">"); return; }
+    if (t.indexOf(">") === 0) {
+      if (inUl) { out.push("</ul>"); inUl = false; }
+      if (inOl) { out.push("</ol>"); inOl = false; }
+      if (!inQ) { out.push("<blockquote>"); inQ = true; }
+      out.push("<p>" + inline(t.replace(/^>\s*/, "")) + "</p>");
+      return;
+    }
+    var task = t.match(/^-\s\[([ xX])\]\s+(.*)$/);
+    if (task) {
+      if (inOl) { out.push("</ol>"); inOl = false; }
+      if (!inUl) { out.push("<ul>"); inUl = true; }
+      out.push('<li><input type="checkbox" disabled' + (task[1] === " " ? "" : " checked") + "> " + inline(task[2]) + "</li>");
+      return;
+    }
+    var ol = t.match(/^(\d+)\.\s+(.*)$/);
+    if (ol) {
+      if (inUl) { out.push("</ul>"); inUl = false; }
+      if (!inOl) { out.push("<ol>"); inOl = true; }
+      out.push("<li>" + inline(ol[2]) + "</li>");
+      return;
+    }
+    var ul = t.match(/^[-*+]\s+(.*)$/);
+    if (ul) {
+      if (inOl) { out.push("</ol>"); inOl = false; }
+      if (!inUl) { out.push("<ul>"); inUl = true; }
+      out.push("<li>" + inline(ul[1]) + "</li>");
+      return;
+    }
+    var img = t.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (img) { closeAll(); out.push('<img src="' + escH(img[2]) + '" alt="' + escH(img[1]) + '">'); return; }
+    closeAll();
+    out.push("<p>" + inline(t) + "</p>");
+  });
+  closeAll();
+  var dark = document.body.classList.contains("theme-dark");
+  var css = dark
+    ? "body{font-family:-apple-system,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.6;background:#1e1e1e;color:#e8e8e8}h1,h2,h3{color:#7db4ff}code,pre{background:#2d2d2d;color:#f8a8d8}blockquote{border-left:4px solid #555;padding-left:1em;color:#aaa}a{color:#7db4ff}img{max-width:100%}"
+    : "body{font-family:-apple-system,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.6}h1,h2{border-bottom:1px solid #eee;padding-bottom:.3em}code{background:#f4f4f4;padding:.2em .4em;border-radius:3px}blockquote{border-left:4px solid #ddd;padding-left:1em;color:#666}a{color:#0066cc}img{max-width:100%}";
+  return '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>Document</title>\n<style>' + css + '</style>\n</head>\n<body>\n' + out.join("\n") + "\n</body>\n</html>";
+}
+function exportHtmlDialog(){
+  $("expHtmlName").value = (S.savedName ? S.savedName.replace(/\.md$/, "") : "document") + ".html";
+  openModal("mExportHtml");
+}
+$("btnDoExpHtml").onclick = function(){
+  closeModal("mExportHtml");
+  if (S.diskReadonly) { showError("导出失败：磁盘只读（旧版仅 DebugLog，无用户提示 — F009 异常）"); return; }
+  $("htmlcode").value = mdToHtml();
+  openModal("htmlpreview");
+  toast("已导出 HTML（⌃⌘E — F009，主题 CSS 联动 F050）", "ok");
+};
+var pdfTimer = null;
+function exportPdfDialog(){
+  $("pdfBar").style.width = "0%";
+  $("pdfStatus").textContent = "等待打印…";
+  openModal("mExportPdf");
+}
+$("btnDoExpPdf").onclick = function(){
+  var p = 0;
+  $("btnDoExpPdf").disabled = true;
+  pdfTimer = setInterval(function(){
+    p += 12;
+    $("pdfBar").style.width = Math.min(100, p) + "%";
+    $("pdfStatus").textContent = "WKWebView 渲染中… " + Math.min(100, p) + "%";
+    if (p >= 100) {
+      clearInterval(pdfTimer);
+      $("pdfStatus").textContent = "已通过打印面板存储为 PDF（F010）";
+      $("btnDoExpPdf").disabled = false;
+      toast("PDF 导出完成（⌃⌘P — F010）", "ok");
+    }
+  }, 180);
+};
+$("btnCancelPdf").onclick = function(){ if (pdfTimer) clearInterval(pdfTimer); $("btnDoExpPdf").disabled = false; };
+
+/* ---------- 偏好（PAGE008） ---------- */
+function openPrefs(){
+  $("prefFont").value = String(S.fontSize);
+  $("prefTheme").value = S.theme;
+  $("prefAutosave").checked = S.autosave;
+  openModal("mPrefs");
+}
+$("btnPrefs").onclick = openPrefs;
+$("prefFont").onchange = function(){
+  S.fontSize = parseInt(this.value, 10);
+  document.documentElement.style.setProperty("--edfs", S.fontSize + "px");
+  toast("字号 " + S.fontSize + "pt 即时生效：全文重排版且光标保持（F049/F052）", "ok", 2200);
+};
+$("prefTheme").onchange = function(){
+  S.theme = this.value;
+  applyTheme();
+  toast("主题 " + S.theme + "：NSAppearance + 编辑器配色 + 导出 CSS 三处联动（F050）", "ok", 2400);
+};
+$("prefAutosave").onchange = function(){
+  S.autosave = this.checked;
+  toast("自动保存已" + (S.autosave ? "开启（3 秒落盘 — F008/F051）" : "关闭"), "ok", 2000);
+  if (!S.autosave && autosaveTimer) clearTimeout(autosaveTimer);
+};
+function applyTheme(){
+  var dark = S.theme === "dark" || (S.theme === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.body.classList.toggle("theme-dark", dark);
+  document.body.classList.toggle("theme-light", !dark);
+}
+
+/* ---------- 窗口控制（PAGE001/PAGE007） ---------- */
+$("btnCloseWin").onclick = closeWin;
+function closeWin(){
+  if (S.winClosed) return;
+  if (S.edited) {
+    $("askDoc").textContent = S.savedName || "Untitled";
+    openModal("mCloseAsk");
+    return;
+  }
+  reallyClose();
+}
+function reallyClose(){
+  $("macwin").classList.add("closed");
+  S.winClosed = true;
+  $("reopenchip").classList.add("show");
+}
+$("askCancel").onclick = function(){ closeModal("mCloseAsk"); toast("取消关闭：返回编辑（用户取消）", "", 1500); };
+$("askNo").onclick = function(){ closeModal("mCloseAsk"); reallyClose(); toast("不存储直接关闭（未保存更改已放弃）", "", 2000); };
+$("askYes").onclick = function(){ closeModal("mCloseAsk"); doSave(); reallyClose(); };
+$("btnReopen").onclick = function(){
+  $("macwin").classList.remove("closed", "minimized");
+  S.winClosed = false;
+  $("reopenchip").classList.remove("show");
+  toast("窗口已重开（applicationShouldHandleReopen — F001）", "ok", 1800);
+};
+$("btnMinWin").onclick = minimizeWin;
+function minimizeWin(){
+  $("macwin").classList.add("minimized");
+  setTimeout(function(){ $("reopenchip").classList.add("show"); }, 300);
+  toast("最小化（⌘M — F056 系统行为模拟）", "", 1500);
+}
+$("btnZoomWin").onclick = zoomWin;
+function zoomWin(){
+  $("macwin").classList.toggle("zoomed");
+  toast("Zoom 缩放切换（F056）", "", 1300);
+}
+
+/* ---------- 模态管理 ---------- */
+var modalStack = [];
+function openModal(id){
+  var m = $(id);
+  m.classList.add("show");
+  $("overlay").classList.add("show");
+  modalStack.push(id);
+}
+function closeModal(id){
+  var m = $(id);
+  m.classList.remove("show");
+  modalStack = modalStack.filter(function(x){ return x !== id; });
+  if (!modalStack.length) $("overlay").classList.remove("show");
+}
+document.querySelectorAll("[data-close]").forEach(function(btn){
+  btn.onclick = function(){ closeModal(btn.dataset.close); };
+});
+$("overlay").onclick = function(){
+  if (modalStack.length) closeModal(modalStack[modalStack.length - 1]);
+};
+document.addEventListener("keydown", function(ev){
+  if (ev.key === "Escape" && modalStack.length) {
+    closeModal(modalStack[modalStack.length - 1]);
+  }
+});
+function showError(msg){
+  $("errText").textContent = msg;
+  openModal("mError");
+}
+
+/* ---------- 评审面板：页面导航 ---------- */
+var PAGES = [
+  ["PAGE001", "主编辑窗口", function(){ ensureWin(); }],
+  ["PAGE002", "应用菜单栏", function(){ ensureWin(); document.querySelector('[data-menu="file"]').click(); }],
+  ["PAGE003", "大纲侧栏", function(){ ensureWin(); if (!S.sidebarOn) toggleSidebar(); renderOutline(); }],
+  ["PAGE004", "Markdown 编辑区", function(){ ensureWin(); ed.focus(); }],
+  ["PAGE005", "状态栏", function(){ ensureWin(); renderStats(); }],
+  ["PAGE006", "工具栏", function(){ ensureWin(); }],
+  ["PAGE007", "专注模式", function(){ ensureWin(); if (!S.focusMode) toggleFocus(); }],
+  ["PAGE008", "偏好设置窗口", function(){ openPrefs(); }],
+  ["PAGE009", "查找替换面板", function(){ openFind(); }],
+  ["PAGE010", "打开文件面板", function(){ openOpenPanel(); }],
+  ["PAGE011", "保存/另存为面板", function(){ saveAsDialog(); }],
+  ["PAGE012", "导出 HTML 面板", function(){ exportHtmlDialog(); }],
+  ["PAGE013", "导出 PDF 打印面板", function(){ exportPdfDialog(); }],
+  ["PAGE014", "关于面板", function(){ openModal("mAbout"); }]
+];
+(function buildNav(){
+  var box = $("pageNav");
+  PAGES.forEach(function(p){
+    var b = document.createElement("button");
+    b.innerHTML = p[0] + " · " + p[1] + "<small>PRD §6</small>";
+    b.onclick = function(){
+      document.querySelectorAll("#pageNav button").forEach(function(x){ x.classList.remove("on"); });
+      b.classList.add("on");
+      p[2]();
+    };
+    box.appendChild(b);
+  });
+})();
+function ensureWin(){
+  if (S.winClosed) $("btnReopen").click();
+}
+
+/* ---------- 评审面板：场景库 ---------- */
+document.querySelectorAll("#review [data-scene]").forEach(function(btn){
+  btn.onclick = function(){
+    var sc = btn.dataset.scene;
+    if (sc === "success") {
+      S.diskReadonly = false;
+      loadDoc("SyntaxHighlightingTest.md", SAMPLE);
+      toast("成功态：标准样例文档（同构 Tests/SyntaxHighlightingTest.md）", "ok");
+    } else if (sc === "empty") {
+      S.diskReadonly = false;
+      S.savedName = null; S.savedOnce = false; S.edited = false;
+      setText("", 0, 0);
+      toast("空数据态：空白文档（可直接输入；空大纲 0/0/1 统计）", "ok", 3000);
+    } else if (sc === "loading") {
+      S.diskReadonly = false;
+      openMockByName("large-document.md");
+    } else if (sc === "broken") {
+      S.diskReadonly = false;
+      openMockByName("破损文件-encoding.md");
+    } else if (sc === "readonly") {
+      S.diskReadonly = true;
+      S.edited = true; renderTitle();
+      toast("异常态已开启：后续保存/导出/自动保存将失败", "err", 3000);
+    } else if (sc === "normal") {
+      S.diskReadonly = false;
+      toast("磁盘恢复正常", "ok", 1600);
+    }
+  };
+});
+$("imeSwitch").onchange = function(){
+  S.imeDemo = this.checked;
+  $("imebar").style.display = "none";
+  toast(S.imeDemo
+    ? "IME 演示开启：在编辑区打字即见组合条，期间高亮冻结（F047）"
+    : "IME 演示关闭", "ok", 2400);
+};
+$("tagSwitch").onchange = function(){
+  document.body.classList.toggle("hide-tags", !this.checked);
+};
+$("btnFindPanel").onclick = openFind;
+
+/* ---------- 时钟 ---------- */
+function tick(){
+  var d = new Date();
+  var hh = ("0" + d.getHours()).slice(-2), mm = ("0" + d.getMinutes()).slice(-2);
+  var days = ["周日","周一","周二","周三","周四","周五","周六"];
+  $("clock").textContent = days[d.getDay()] + " " + hh + ":" + mm;
+}
+setInterval(tick, 10000); tick();
+
+/* ---------- 系统主题跟随 ---------- */
+if (window.matchMedia) {
+  try {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){
+      if (S.theme === "system") applyTheme();
+    });
+  } catch (e) { /* 老浏览器忽略 */ }
+}
+
+/* ---------- 启动 ---------- */
+applyTheme();
+document.documentElement.style.setProperty("--edfs", S.fontSize + "px");
+setText(SAMPLE, 0, 0);
+undoStack = [];
+setTimeout(function(){
+  toast("PaperMD 原型就绪：左侧评审台可切换 14 页面与五态场景", "ok", 3200);
+}, 400);
+</script>
+</body>
+</html>
